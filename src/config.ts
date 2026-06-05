@@ -2,10 +2,11 @@ import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT_DIR = path.resolve(__dirname, "..");
+
+// Always load the mounted .env file and override stale Docker env vars.
+dotenv.config({ path: path.join(ROOT_DIR, ".env"), override: true });
 
 function bool(value: string | undefined, fallback = false): boolean {
   if (value === undefined) return fallback;
