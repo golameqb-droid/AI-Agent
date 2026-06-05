@@ -1,0 +1,16 @@
+services:
+  agent:
+    build: .
+    container_name: equestionbankbd-agent
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # Persist the database across restarts
+      - ./data:/app/data
+      # Allow the Knowledge editor to save changes (and keep them)
+      - ./knowledge:/app/knowledge
+      # Let the in-dashboard Configuration editor read/write your .env
+      - ./.env:/app/.env

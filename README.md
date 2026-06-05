@@ -112,6 +112,41 @@ equestionbankbd-ai-agent/
 
 ---
 
+## Run with Docker (recommended for servers)
+
+Make sure [Docker Desktop](https://www.docker.com/products/docker-desktop/) is
+installed and running, then:
+
+```bash
+cd ~/Projects/equestionbankbd-ai-agent
+
+# 1. Create your config (only the first time)
+cp .env.example .env       # then edit .env, or edit later in the dashboard
+
+# 2. Build and start (runs in the background)
+docker compose up -d --build
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+Then open **http://localhost:3000**.
+
+What's persisted (via volumes), so nothing is lost on restart/rebuild:
+
+- `./data` — the SQLite database (messages, comments, posts)
+- `./knowledge` — your knowledge base (editable from the dashboard)
+- `./.env` — your settings (editable from the **Configuration** tab)
+
+> Note: `.env` must exist before you start (`cp .env.example .env`).
+> After changing the **Port** from the dashboard, run `docker compose up -d`
+> again so the new port takes effect.
+
+---
+
 ## Going live & deployment
 
 For Facebook to send events, your server must be reachable on the internet
