@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eQuestionBankBD · AI Agent</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Login screen -->
+    <div id="login" class="login-screen">
+      <form id="loginForm" class="login-card">
+        <div class="brand-badge">eQ</div>
+        <h1>eQuestionBankBD</h1>
+        <p class="muted">AI Agent Control Panel</p>
+        <input id="loginUser" type="text" placeholder="Username" autocomplete="username" />
+        <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" />
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+        <p id="loginError" class="error-text"></p>
+      </form>
+    </div>
+
+    <!-- App shell -->
+    <div id="app" class="app hidden">
+      <aside class="sidebar">
+        <div class="logo">
+          <div class="brand-badge">eQ</div>
+          <div>
+            <strong>eQuestionBankBD</strong>
+            <span class="muted">AI Agent</span>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-item active" data-view="dashboard"><span>📊</span> Dashboard</button>
+          <button class="nav-item" data-view="inbox"><span>💬</span> Inbox <i class="badge" id="badgeInbox"></i></button>
+          <button class="nav-item" data-view="comments"><span>📝</span> Comments <i class="badge" id="badgeComments"></i></button>
+          <button class="nav-item" data-view="posts"><span>🚀</span> Create Post</button>
+          <button class="nav-item" data-view="knowledge"><span>🧠</span> Knowledge</button>
+          <button class="nav-item" data-view="settings"><span>⚙️</span> Settings</button>
+          <button class="nav-item" data-view="config"><span>🔑</span> Configuration</button>
+        </nav>
+        <div class="sidebar-foot">
+          <div id="statusPill" class="status-pill">checking…</div>
+          <button id="logoutBtn" class="btn btn-ghost btn-block">Log out</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <h2 id="viewTitle">Dashboard</h2>
+          <button class="btn btn-ghost" id="refreshBtn">↻ Refresh</button>
+        </header>
+        <div id="view" class="view"></div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>
