@@ -10,10 +10,5 @@ services:
     environment:
       - NODE_ENV=production
     volumes:
-      # SQLite database (vendors, messages, orders, etc.)
       - ./data:/app/data
-      # Platform .env (webhook verify token, JWT secret, super admin)
       - ./.env:/app/.env
-      # Live UI + compiled backend (no rebuild needed for dashboard changes)
-      - ./public:/app/public
-      - ./dist:/app/dist

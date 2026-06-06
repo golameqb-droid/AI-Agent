@@ -1,0 +1,8 @@
+# Local dev — live-mount UI and compiled output (do not use on VPS)
+services:
+  socialai-pro:
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./public:/app/public
+      - ./dist:/app/dist
