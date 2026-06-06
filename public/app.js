@@ -58,6 +58,7 @@
 
   async function api(path, opts = {}) {
     const base = path.startsWith("/auth") || path.startsWith("/admin") ? "/api" : "/api";
+    const isAuthAttempt = path.startsWith("/auth/login") || path.startsWith("/auth/register");
     const res = await fetch(base + path, {
       ...opts,
       headers: {
@@ -66,8 +67,11 @@
         ...(opts.headers || {}),
       },
     });
-    if (res.status === 401) { logout(); throw new Error("Session expired. Please sign in again."); }
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && !isAuthAttempt) {
+      logout();
+      throw new Error("Session expired. Please sign in again.");
+    }
     if (!res.ok) throw new Error(data.error || "Request failed");
     return data;
   }
