@@ -59,6 +59,40 @@ CREATE TABLE IF NOT EXISTS vendor_knowledge (
   runPhase2Migrations(db);
   runPhase3Migrations(db);
   runPhase4to6Migrations(db);
+  repairMessagesForeignKey(db);
+}
+
+/** Fix messages FK still pointing at conversations_old after interrupted migration. */
+function repairMessagesForeignKey(db: Database.Database): void {
+  const row = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'messages'")
+    .get() as { sql: string } | undefined;
+  if (!row?.sql?.includes("conversations_old")) return;
+
+  logger.info("Repairing messages foreign key (conversations_old → conversations)…");
+  const hasImage = hasColumn(db, "messages", "image_url");
+  db.pragma("foreign_keys = OFF");
+  db.exec(`
+    CREATE TABLE messages_fix (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id INTEGER NOT NULL,
+      direction       TEXT NOT NULL,
+      text            TEXT NOT NULL,
+      ai_draft        TEXT,
+      status          TEXT NOT NULL DEFAULT 'pending',
+      created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+      ${hasImage ? "image_url TEXT," : ""}
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+    );
+    INSERT INTO messages_fix SELECT id, conversation_id, direction, text, ai_draft, status, created_at${
+      hasImage ? ", image_url" : ""
+    } FROM messages;
+    DROP TABLE messages;
+    ALTER TABLE messages_fix RENAME TO messages;
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+  `);
+  db.pragma("foreign_keys = ON");
+  logger.info("Messages foreign key repaired.");
 }
 
 /** Phase 2: products catalog + human handoff on conversations. */
