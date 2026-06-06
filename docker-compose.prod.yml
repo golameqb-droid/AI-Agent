@@ -1,0 +1,8 @@
+# Production override — bind host port 3010 (avoids 5000/8080 used by other projects)
+services:
+  socialai-pro:
+    ports:
+      - "127.0.0.1:3010:3000"
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
