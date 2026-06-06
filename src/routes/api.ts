@@ -376,8 +376,14 @@ apiRouter.post("/messages/:id/regenerate", async (req: AuthedRequest, res) => {
 });
 
 // ---------------------------- Comments --------------------------
-apiRouter.get("/comments", (req: AuthedRequest, res) => {
+apiRouter.get("/comments", async (req: AuthedRequest, res) => {
   const vid = vendorId(req);
+  try {
+    const { syncVendorComments } = await import("../services/comment-sync.js");
+    await syncVendorComments(vid);
+  } catch {
+    /* sync is best-effort */
+  }
   const status = req.query.status;
   const rows = status
     ? db.prepare("SELECT * FROM comments WHERE vendor_id = ? AND status = ? ORDER BY id DESC").all(vid, status)

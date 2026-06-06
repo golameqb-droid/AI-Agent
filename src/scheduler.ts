@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { db } from "./db.js";
 import { logger } from "./logger.js";
 import { publishPost, publishPhoto } from "./services/facebook.js";
+import { syncAllVendorComments } from "./services/comment-sync.js";
 import { getVendorConfig } from "./services/vendor.js";
 import type { PostItem } from "./types.js";
 
@@ -34,5 +35,10 @@ export function startScheduler() {
     }
   });
 
+  cron.schedule("* * * * *", () => {
+    void syncAllVendorComments();
+  });
+
   logger.info("Post scheduler started (checks every minute).");
+  void syncAllVendorComments();
 }

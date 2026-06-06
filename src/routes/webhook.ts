@@ -56,7 +56,8 @@ webhookRouter.post("/webhook", async (req, res) => {
       for (const change of entry.changes ?? []) {
         if (change.field !== "feed") continue;
         const v = change.value ?? {};
-        if (v.item === "comment" && v.verb === "add") {
+        logger.info(`Feed webhook page ${pageId}: item=${v.item} verb=${v.verb}`);
+        if (v.item === "comment" && (v.verb === "add" || v.verb === "edited")) {
           if (v.from?.id && String(v.from.id) === pageId) continue;
           await handleIncomingComment(
             vendorId,
