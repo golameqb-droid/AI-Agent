@@ -63,7 +63,7 @@
       ...opts,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: "Bearer " + token } : {}),
+        ...(!isAuthAttempt && token ? { Authorization: "Bearer " + token } : {}),
         ...(opts.headers || {}),
       },
     });
@@ -256,7 +256,10 @@
 
   $("#adminForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    $("#loginError").textContent = "";
     try {
+      token = "";
+      localStorage.removeItem(TOKEN_KEY);
       const r = await api("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: $("#adminEmail").value, password: $("#adminPass").value }),
