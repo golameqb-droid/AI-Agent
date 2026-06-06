@@ -16,6 +16,18 @@ function bool(value: string | undefined, fallback = false): boolean {
 export const config = {
   port: Number(process.env.PORT ?? 3000),
 
+  platform: {
+    name: "SocialAI Pro",
+    jwtSecret: process.env.JWT_SECRET ?? "socialai-pro-change-me-in-production",
+    superAdminEmail: process.env.SUPER_ADMIN_EMAIL ?? "admin@socialai.pro",
+    superAdminPassword: process.env.SUPER_ADMIN_PASSWORD ?? "admin123",
+    webhookVerifyToken:
+      process.env.FB_VERIFY_TOKEN ?? "socialai_pro_verify_secret_123",
+    /** Public URL for product images (must be HTTPS for Facebook). e.g. https://your-tunnel.trycloudflare.com */
+    publicBaseUrl: process.env.PUBLIC_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 3000)}`,
+  },
+
+  // Legacy single-tenant fallback (platform uses vendor_settings per vendor)
   dashboard: {
     user: process.env.DASHBOARD_USER ?? "admin",
     pass: process.env.DASHBOARD_PASS ?? "changeme",
@@ -31,12 +43,16 @@ export const config = {
       apiKey: process.env.GROQ_API_KEY ?? "",
       model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
     },
+    anthropic: {
+      apiKey: process.env.ANTHROPIC_API_KEY ?? "",
+      model: process.env.ANTHROPIC_MODEL ?? "claude-3-5-haiku-20241022",
+    },
   },
 
   facebook: {
     pageId: process.env.FB_PAGE_ID ?? "",
     pageAccessToken: process.env.FB_PAGE_ACCESS_TOKEN ?? "",
-    verifyToken: process.env.FB_VERIFY_TOKEN ?? "equestionbankbd_verify_secret_123",
+    verifyToken: process.env.FB_VERIFY_TOKEN ?? "socialai_pro_verify_secret_123",
     graphVersion: process.env.FB_GRAPH_VERSION ?? "v21.0",
   },
 
@@ -52,6 +68,18 @@ export const config = {
     db: path.join(ROOT_DIR, "data", "agent.db"),
     knowledge: path.join(ROOT_DIR, "knowledge", "equestionbankbd.md"),
     public: path.join(ROOT_DIR, "public"),
+    uploads: path.join(ROOT_DIR, "data", "uploads"),
+  },
+
+  payments: {
+    bkash: { merchant: process.env.BKASH_MERCHANT ?? "", username: process.env.BKASH_USERNAME ?? "", password: process.env.BKASH_PASSWORD ?? "" },
+    nagad: { merchantId: process.env.NAGAD_MERCHANT_ID ?? "", publicKey: process.env.NAGAD_PUBLIC_KEY ?? "" },
+    sslcommerz: { storeId: process.env.SSLCOMMERZ_STORE_ID ?? "", storePass: process.env.SSLCOMMERZ_STORE_PASS ?? "", sandbox: bool(process.env.SSLCOMMERZ_SANDBOX, true) },
+  },
+
+  sales: {
+    email: process.env.SALES_EMAIL ?? "sales@socialai.pro",
+    whatsapp: process.env.SALES_WHATSAPP ?? "",
   },
 };
 

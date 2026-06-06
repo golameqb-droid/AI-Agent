@@ -2,26 +2,18 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { runMigrations } from "./migrate.js";
 
 fs.mkdirSync(config.paths.data, { recursive: true });
 
 export const db = new Database(config.paths.db);
 db.pragma("journal_mode = WAL");
 
+// Legacy global settings (kept for platform-level config)
 db.exec(`
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS conversations (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  psid          TEXT UNIQUE NOT NULL,
-  customer_name TEXT,
-  last_message  TEXT,
-  unread        INTEGER NOT NULL DEFAULT 0,
-  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -37,7 +29,7 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE TABLE IF NOT EXISTS comments (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  fb_comment_id TEXT UNIQUE NOT NULL,
+  fb_comment_id TEXT NOT NULL,
   post_id       TEXT,
   from_name     TEXT,
   message       TEXT NOT NULL,
@@ -58,10 +50,22 @@ CREATE TABLE IF NOT EXISTS posts (
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS conversations (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  psid          TEXT NOT NULL,
+  customer_name TEXT,
+  last_message  TEXT,
+  unread        INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status);
 CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status);
 `);
+
+runMigrations(db);
 
 logger.info(`Database ready at ${config.paths.db}`);
 

@@ -1,10 +1,12 @@
-import { config } from "../config.js";
-import { generate } from "./ai.js";
-import { loadKnowledge } from "./knowledge.js";
+import { generateForVendor } from "./ai.js";
+import { loadVendorKnowledge } from "./knowledge.js";
+import { formatProductsForAi } from "./products.js";
 import type { AiResult } from "../types.js";
+import type { VendorConfig } from "./vendor.js";
+import { getVendorById } from "./vendor.js";
 
-function languageInstruction(): string {
-  switch (config.behaviour.replyLanguage) {
+function languageInstruction(lang: string): string {
+  switch (lang) {
     case "bangla":
       return "Reply in Bangla (Bengali script).";
     case "english":
@@ -13,74 +15,81 @@ function languageInstruction(): string {
       return "Detect the customer's language and reply in the SAME language and script they used.";
     case "banglish":
     default:
-      return "Reply in Banglish — natural Bangla written in English/Roman letters mixed with common English words, the way young Bangladeshis chat on Facebook. Example tone: 'Apnar order ta confirm kore dilam, dhonnobad!'";
+      return "Reply in Banglish — natural Bangla in Roman letters mixed with English, the way Bangladeshis chat on Facebook.";
   }
 }
 
-/** The core persona / system prompt used for every customer interaction. */
-function personaPrompt(): string {
-  const knowledge = loadKnowledge();
-  return `You are the official AI customer-care agent for the Facebook Page "eQuestionBankBD".
+function personaPrompt(cfg: VendorConfig): string {
+  const vendor = getVendorById(cfg.vendorId);
+  const businessName = vendor?.name ?? "this business";
+  const knowledge = loadVendorKnowledge(cfg.vendorId);
+  return `You are the official AI customer-care agent for "${businessName}" on Facebook.
 You behave like the support team of a large, professional company: warm, fast, accurate, and trustworthy.
 
 LANGUAGE STYLE:
-${languageInstruction()}
+${languageInstruction(cfg.replyLanguage)}
 
 CORE RULES:
 - Be polite, friendly and human. Sound like a helpful boro bhai/apu, not a robot.
-- Keep replies short and clear (usually 1-4 sentences). Use line breaks if needed.
-- Only use information from the KNOWLEDGE BASE below. Never invent prices, links, dates or policies.
+- Keep replies short and clear (usually 1-4 sentences).
+- Only use information from the KNOWLEDGE BASE below. Never invent prices, links, or policies.
 - When a relevant link exists in the knowledge base, share it naturally.
-- If you do not know something, or it needs a human (refund, complaint, payment dispute, account issue),
-  apologize briefly and say a team member will reply soon. Do NOT make things up.
-- Never share passwords or sensitive data. Never argue. Stay positive and on-topic.
-- If the customer is just greeting or thanking, respond warmly and briefly.
+- If you do not know something, or it needs a human, say a team member will reply soon.
+- Never share passwords. Never argue. Stay on-topic.
+
+PRODUCT & IMAGE RULES:
+- When customer asks to see a product photo/image, append [[PRODUCT:ID]] at the END of your reply (use the ID from catalog).
+- You may append multiple [[PRODUCT:ID]] tags if showing several items.
+- When customer wants to talk to a human/agent/manager, append [[HANDOFF]] at the END and politely say a team member will reply soon.
+- When customer wants to ORDER/BUY and you have product + quantity + phone + delivery address, append at the END:
+  [[ORDER:{"customer_name":"","phone":"","address":"","items":[{"product_id":1,"name":"Product name","qty":1,"price":"৳500"}],"notes":"","total":""}]]
+  Use product_id from catalog when known. Ask for missing details before placing the order.
+- Do NOT write [[PRODUCT:ID]], [[HANDOFF]], or [[ORDER:...]] in the middle of sentences — only at the very end.
+
+=========================  PRODUCT CATALOG  =========================
+${formatProductsForAi(cfg.vendorId)}
 
 =========================  KNOWLEDGE BASE  =========================
 ${knowledge}
 ===================================================================`;
 }
 
-/** Generate a reply to a customer's Messenger message. */
 export async function draftMessageReply(
+  cfg: VendorConfig,
   customerName: string | null,
   customerText: string,
   history?: { direction: string; text: string }[]
 ): Promise<AiResult> {
   const name = customerName ? `Customer name: ${customerName}\n` : "";
   const convo =
-    history && history.length
-      ? `Recent conversation (oldest first):\n${history
+    history?.length
+      ? `Recent conversation:\n${history
           .map((m) => `${m.direction === "in" ? "Customer" : "Us"}: ${m.text}`)
           .join("\n")}\n\n`
       : "";
-
-  const user = `${name}${convo}The customer just sent this message on Messenger:\n"""${customerText}"""\n\nWrite the best reply now.`;
-  return generate({ system: personaPrompt(), user });
+  const user = `${name}${convo}Customer message:\n"""${customerText}"""\n\nWrite the best reply.`;
+  return generateForVendor(cfg, { system: personaPrompt(cfg), user, purpose: "message_reply" });
 }
 
-/** Generate a reply to a comment on a Facebook post. */
 export async function draftCommentReply(
+  cfg: VendorConfig,
   fromName: string | null,
   commentText: string
 ): Promise<AiResult> {
   const name = fromName ? `Commenter: ${fromName}\n` : "";
-  const user = `${name}Someone left this comment on one of our Facebook posts:\n"""${commentText}"""\n\nWrite a short, friendly public reply (1-2 sentences). If their question needs private details, invite them to message the page.`;
-  return generate({ system: personaPrompt(), user });
+  const user = `${name}Comment on our post:\n"""${commentText}"""\n\nWrite a short public reply (1-2 sentences).`;
+  return generateForVendor(cfg, { system: personaPrompt(cfg), user, purpose: "comment_reply" });
 }
 
-/** Generate a full Facebook post (caption/content) from a topic or instruction. */
-export async function draftPost(topic: string): Promise<AiResult> {
-  const system = `You are the social media manager for the Facebook Page "eQuestionBankBD".
-Write engaging, professional Facebook posts that get likes, comments and shares.
-${languageInstruction()}
-Use a catchy hook, clear value, a call-to-action, and 3-6 relevant hashtags at the end.
-Use tasteful emojis. Keep it suitable for a Bangladeshi student/job-seeker audience.
+export async function draftPost(cfg: VendorConfig, topic: string): Promise<AiResult> {
+  const vendor = getVendorById(cfg.vendorId);
+  const system = `You are the social media manager for "${vendor?.name ?? "this business"}".
+Write engaging Facebook posts for a Bangladeshi audience.
+${languageInstruction(cfg.replyLanguage)}
+Use a hook, value, CTA, and 3-6 hashtags.
 
-Reference info about the business:
-${loadKnowledge()}`;
-
-  const user = `Write a complete Facebook post about: "${topic}".
-Return only the post text (caption), ready to publish.`;
-  return generate({ system, user, temperature: 0.85, maxTokens: 600 });
+Business info:
+${loadVendorKnowledge(cfg.vendorId)}`;
+  const user = `Write a complete Facebook post about: "${topic}". Return only the post text.`;
+  return generateForVendor(cfg, { system, user, temperature: 0.85, maxTokens: 600, purpose: "post_draft" });
 }

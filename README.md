@@ -1,170 +1,108 @@
-# eQuestionBankBD — AI Facebook Page Agent
+# SocialAI Pro
 
-A professional, company-grade AI agent that manages your **eQuestionBankBD** Facebook Page.
-It can:
+**Multi-vendor SaaS platform** for AI-powered Facebook Page management.
+Sell this service to vendors — each gets their own isolated dashboard, Facebook credentials, knowledge base, and AI agent.
 
-- 💬 **Reply to Messenger messages** based on what the customer needs (in Banglish)
-- 📝 **Reply to comments** on your posts
-- 🚀 **Write, schedule, and publish posts** (text, image, links) — AI writes the content
-- 🔗 **Share the right links** automatically from your knowledge base
-- 🧠 **Know everything about eQuestionBankBD** via an editable knowledge file
-- 🖥️ Comes with a **full web dashboard** (inbox, comments, post composer, analytics, settings)
+## Phase 1 — Multi-vendor foundation ✅
 
-It uses a **free AI provider** (Google Gemini free tier by default; Groq also supported).
+- Vendor registration & JWT login
+- Per-vendor Facebook config, knowledge base, AI settings
+- Isolated inbox, comments, posts per vendor
+- Webhook routes messages to the correct vendor by Page ID
+- Super admin panel (manage all vendors)
+- AI providers: Gemini, Groq, **Anthropic Claude**
+
+## Phase 2 — Products & handoff ✅
+
+- Per-vendor product catalog with image uploads
+- AI sends product photos in Messenger
+- Human handoff queue with vendor takeover
+
+## Phase 3 — Orders & Excel export ✅
+
+- AI captures orders from Messenger (product, qty, phone, address)
+- Vendor **Orders** tab — confirm, ship, deliver, cancel
+- Manual order entry + **Export Excel** (CSV download)
+
+## Phase 4 — Advanced posts ✅
+
+- Post templates, scheduling, bulk schedule API
+- Title/tags on posts
+
+## Phase 5 — Omnichannel ✅
+
+- **Messenger** + **WhatsApp** + **Instagram** unified inbox
+- Per-vendor channel config (admin-managed)
+- Webhooks: `/webhook`, `/webhook/whatsapp`, `/webhook/instagram`
+
+## Phase 6 — Commercial subscriptions ✅
+
+| Plan | Price | Messages | Channels |
+|------|-------|----------|----------|
+| Trial | Free 14 days | 500 | Messenger |
+| Pro | ৳12,500/mo | 18,000 | All 3 |
+| Elite | ৳26,000/mo | 40,000 | All 3 |
+| Enterprise | Custom | Unlimited | All 3 |
+
+- Usage limits enforced per plan
+- Payments: **bKash**, **Nagad**, **SSLCommerz**
+- Public pricing page: `/pricing`
+- Vendor self-registration with free trial
 
 ---
 
-## Quick start (5 steps)
+## Quick start
 
 ```bash
-# 1. Go to the project
-cd ~/Projects/equestionbankbd-ai-agent
-
-# 2. Install dependencies
 npm install
-
-# 3. Create your config from the template
-cp .env.example .env
-
-# 4. Open .env and fill in your AI key (and Facebook details when ready)
-#    - Get a FREE Gemini key: https://aistudio.google.com/app/apikey
-#    - Set DASHBOARD_USER / DASHBOARD_PASS to your own login
-
-# 5. Start it
+cp .env.example .env   # edit JWT_SECRET and super admin credentials
 npm run dev
 ```
 
-Then open **http://localhost:3000** and log in with the dashboard user/password
-you set in `.env`.
+Open **http://localhost:3000**
 
-> You can use the dashboard and the AI **before** connecting Facebook —
-> it will create drafts you can review. To go fully live (auto-reading and
-> auto-replying), connect Facebook by following **SETUP_FACEBOOK.md**.
+### Accounts
 
----
+| Role | How to access |
+|------|---------------|
+| **Vendor** | Register tab → create business account |
+| **Super Admin** | Admin tab → `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env` |
 
-## How it works
+Default super admin (change in `.env`):
+- Email: `admin@socialai.pro`
+- Password: `admin123`
 
-```
-Facebook Page  ──webhook──▶  Server (Express)  ──▶  AI (Gemini/Groq)  ──▶  Draft reply
-                                   │                                          │
-                                   ▼                                          ▼
-                              SQLite DB  ◀────────  Dashboard (approve/edit/send)
-                                   │
-                                   └──▶ Facebook Graph API (send reply / publish post)
-```
+### Each vendor sets up
 
-- New messages & comments arrive at `/webhook` in real time.
-- The AI writes a draft reply using your **knowledge base**.
-- By default replies wait for your approval in the dashboard (safe mode).
-- Flip **Auto-reply** ON in Settings once you trust it.
-- Scheduled posts publish automatically (checked every minute).
+1. **Configuration** → Facebook Page ID + token, AI provider + API key
+2. **Knowledge** → business info, products, FAQ
+3. **Settings** → auto-reply on/off
+4. Meta webhook Callback URL → `https://YOUR-DOMAIN/webhook`
+5. Verify token → `FB_VERIFY_TOKEN` from `.env` (shared platform token)
 
 ---
 
-## Configuration (`.env`)
-
-| Key | What it is |
-|-----|------------|
-| `AI_PROVIDER` | `gemini` (free) or `groq` (free) |
-| `GEMINI_API_KEY` | Free key from https://aistudio.google.com/app/apikey |
-| `GROQ_API_KEY` | Free key from https://console.groq.com/keys |
-| `DASHBOARD_USER` / `DASHBOARD_PASS` | Your dashboard login |
-| `FB_PAGE_ID` | Your Facebook Page ID |
-| `FB_PAGE_ACCESS_TOKEN` | Page access token (see SETUP_FACEBOOK.md) |
-| `FB_VERIFY_TOKEN` | Any secret string you choose |
-| `AUTO_REPLY_MESSAGES` / `AUTO_REPLY_COMMENTS` | `true`/`false` |
-| `REPLY_LANGUAGE` | `banglish` / `bangla` / `english` / `auto` |
-
----
-
-## The knowledge base = the AI's brain
-
-Edit **`knowledge/equestionbankbd.md`** (or use the **Knowledge** tab in the
-dashboard). Fill in your services, prices, links, FAQ, and contact info.
-The AI only answers from this file — so the more you put, the smarter it gets,
-and it will never make up false information.
-
----
-
-## Project structure
-
-```
-equestionbankbd-ai-agent/
-├─ src/
-│  ├─ index.ts            # server entry
-│  ├─ config.ts           # env config
-│  ├─ db.ts               # SQLite setup
-│  ├─ scheduler.ts        # scheduled-post publisher
-│  ├─ routes/
-│  │  ├─ webhook.ts       # Facebook webhook (messages + comments)
-│  │  └─ api.ts           # dashboard API
-│  └─ services/
-│     ├─ ai.ts            # Gemini / Groq (free)
-│     ├─ agent.ts         # persona + prompts
-│     ├─ facebook.ts      # Graph API client
-│     ├─ inbox.ts         # message/comment processing
-│     └─ knowledge.ts     # loads the knowledge file
-├─ public/                # dashboard (HTML/CSS/JS)
-├─ knowledge/             # editable knowledge base
-└─ data/                  # SQLite database (auto-created)
-```
-
----
-
-## Run with Docker (recommended for servers)
-
-Make sure [Docker Desktop](https://www.docker.com/products/docker-desktop/) is
-installed and running, then:
+## Docker
 
 ```bash
-cd ~/Projects/equestionbankbd-ai-agent
-
-# 1. Create your config (only the first time)
-cp .env.example .env       # then edit .env, or edit later in the dashboard
-
-# 2. Build and start (runs in the background)
 docker compose up -d --build
-
-# View logs
-docker compose logs -f
-
-# Stop
-docker compose down
 ```
-
-Then open **http://localhost:3000**.
-
-What's persisted (via volumes), so nothing is lost on restart/rebuild:
-
-- `./data` — the SQLite database (messages, comments, posts)
-- `./knowledge` — your knowledge base (editable from the dashboard)
-- `./.env` — your settings (editable from the **Configuration** tab)
-
-> Note: `.env` must exist before you start (`cp .env.example .env`).
-> After changing the **Port** from the dashboard, run `docker compose up -d`
-> again so the new port takes effect.
 
 ---
 
-## Going live & deployment
+## Architecture
 
-For Facebook to send events, your server must be reachable on the internet
-over HTTPS. Easiest options:
-
-- **Testing:** run `npx localtunnel --port 3000` or `ngrok http 3000` and use
-  the HTTPS URL as your webhook callback.
-- **Production:** deploy to Railway, Render, a VPS, etc., and point the webhook
-  to `https://your-domain/webhook`.
-
-Full Facebook connection steps are in **SETUP_FACEBOOK.md**.
+```
+Vendor A ──┐
+Vendor B ──┼──▶ SocialAI Pro Platform ──▶ Facebook Webhook
+Vendor C ──┘         │                        │
+                     ├── Per-vendor DB rows   └── Routes by Page ID
+                     ├── Per-vendor AI config
+                     └── Super admin oversight
+```
 
 ---
 
-## Safety notes
+## Repo
 
-- Start with **auto-reply OFF** and review drafts until you trust the AI.
-- Keep `.env` private (it holds your keys) — it is git-ignored.
-- The AI is instructed never to invent prices/links or handle refunds itself;
-  it escalates those to you.
-```
+https://github.com/golameqb-droid/AI-Agent.git

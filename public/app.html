@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in — SocialAI Pro</title>
+    <link rel="stylesheet" href="/styles.css?v=5.4" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="login" class="login-screen">
+      <div class="login-card login-wide">
+        <a href="/" class="login-back">← Back to home</a>
+        <div class="brand-badge">SA</div>
+        <h1>SocialAI Pro</h1>
+        <p class="muted">Messenger · WhatsApp · Instagram — AI automation for any business page</p>
+        <p style="margin:12px 0 0"><a href="/pricing" class="link-neon">View pricing plans</a></p>
+
+        <div class="tabs" id="authTabs">
+          <button class="tab active" data-tab="login">Vendor Login</button>
+          <button class="tab" data-tab="register">Register</button>
+          <button class="tab" data-tab="admin">Super Admin</button>
+        </div>
+
+        <form id="loginForm" class="auth-panel">
+          <p class="muted" style="font-size:13px;margin:0 0 8px">Your account is created by SocialAI Pro admin.</p>
+          <input id="loginEmail" type="email" placeholder="Email" autocomplete="username" />
+          <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" />
+          <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+        </form>
+
+        <form id="registerForm" class="auth-panel hidden">
+          <p class="muted" style="font-size:13px;margin:0 0 8px">Start free trial — any Facebook / WhatsApp / Instagram business</p>
+          <input id="regBusiness" placeholder="Business name" />
+          <input id="regOwner" placeholder="Your name" />
+          <input id="regEmail" type="email" placeholder="Email" />
+          <input id="regPass" type="password" placeholder="Password (min 6)" />
+          <button type="submit" class="btn btn-primary btn-block">Start free trial</button>
+        </form>
+
+        <form id="adminForm" class="auth-panel hidden">
+          <p class="muted" style="font-size:13px;margin:0 0 10px">Platform super admin login</p>
+          <input id="adminEmail" type="email" placeholder="Admin email" />
+          <input id="adminPass" type="password" placeholder="Admin password" />
+          <button type="submit" class="btn btn-primary btn-block">Sign in as Admin</button>
+        </form>
+
+        <p id="loginError" class="error-text"></p>
+      </div>
+    </div>
+
+    <div id="app" class="app hidden">
+      <aside class="sidebar">
+        <div class="logo">
+          <div class="brand-badge">SA</div>
+          <div>
+            <strong>SocialAI Pro</strong>
+            <span class="muted" id="vendorLabel">Vendor Panel</span>
+          </div>
+        </div>
+        <nav class="nav" id="nav"></nav>
+        <div class="sidebar-foot">
+          <div id="statusPill" class="status-pill">checking…</div>
+          <div id="planPill" class="status-pill hidden"></div>
+          <button id="logoutBtn" class="btn btn-ghost btn-block">Log out</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <h2 id="viewTitle">Dashboard</h2>
+          <button class="btn btn-ghost" id="refreshBtn">↻ Refresh</button>
+        </header>
+        <div id="view" class="view"></div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="/kpi-charts.js?v=5.4"></script>
+    <script src="/app.js?v=5.4"></script>
+  </body>
+</html>

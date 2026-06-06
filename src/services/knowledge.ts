@@ -1,19 +1,16 @@
-import fs from "node:fs";
-import { config } from "../config.js";
-import { logger } from "../logger.js";
+import { db } from "../db.js";
 
-let cache: { text: string; mtime: number } | null = null;
+/** Load a vendor's knowledge base from the database. */
+export function loadVendorKnowledge(vendorId: number): string {
+  const row = db
+    .prepare("SELECT content FROM vendor_knowledge WHERE vendor_id = ?")
+    .get(vendorId) as { content: string } | undefined;
+  return row?.content ?? "(No knowledge base provided yet.)";
+}
 
-/** Loads the editable knowledge base file, cached and auto-refreshed on edit. */
-export function loadKnowledge(): string {
-  try {
-    const stat = fs.statSync(config.paths.knowledge);
-    if (cache && cache.mtime === stat.mtimeMs) return cache.text;
-    const text = fs.readFileSync(config.paths.knowledge, "utf8");
-    cache = { text, mtime: stat.mtimeMs };
-    return text;
-  } catch (err) {
-    logger.warn("Knowledge base file not found; using empty knowledge.", err);
-    return "(No knowledge base provided yet.)";
-  }
+export function saveVendorKnowledge(vendorId: number, content: string): void {
+  db.prepare(
+    `INSERT INTO vendor_knowledge (vendor_id, content, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(vendor_id) DO UPDATE SET content = excluded.content, updated_at = datetime('now')`
+  ).run(vendorId, content);
 }

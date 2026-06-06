@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pricing — SocialAI Pro</title>
+  <link rel="stylesheet" href="/styles.css?v=8.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="pricing-page">
+    <header class="pricing-header">
+      <a href="/" class="logo-link"><img src="/assets/logo.svg" alt="" width="32" height="32" style="border-radius:8px" /> <strong>SocialAI Pro</strong></a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/app">Sign in</a>
+        <a href="/pricing" class="active">Pricing</a>
+      </nav>
+    </header>
+
+    <section class="pricing-hero">
+      <p class="hero-eyebrow">Plans for every business</p>
+      <h1>Pricing</h1>
+      <p>Omnichannel AI for Messenger, WhatsApp & Instagram — built for Bangladesh.</p>
+    </section>
+
+    <div class="pricing-grid" id="pricingGrid">Loading plans…</div>
+
+    <section class="pricing-footer muted">
+      <p>All plans include suggestive AI, comment automation, image replies & multilingual support.</p>
+      <p>Enterprise? <a href="mailto:sales@socialai.pro">Contact sales</a></p>
+    </section>
+  </div>
+
+  <script>
+    const esc = (s) => (s ?? "").toString().replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    fetch("/api/billing/plans").then((r) => r.json()).then((data) => {
+      const grid = document.getElementById("pricingGrid");
+      grid.innerHTML = data.plans.map((p) => `
+        <div class="price-card ${p.popular ? "popular" : ""}">
+          ${p.popular ? '<span class="popular-badge">Popular</span>' : ""}
+          <h2>${esc(p.name)} plan</h2>
+          <div class="price">${esc(p.priceLabel)}<span>/month</span></div>
+          <p class="subtitle">${esc(p.subtitle)}</p>
+          <a href="/app#register" class="btn ${p.popular ? "btn-primary" : ""} btn-block">Get started</a>
+          <ul class="features">
+            ${p.features.map((f) => `<li>${esc(f)}</li>`).join("")}
+          </ul>
+        </div>
+      `).join("");
+    });
+  </script>
+</body>
+</html>

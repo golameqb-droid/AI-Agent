@@ -1,16 +1,19 @@
 services:
-  agent:
+  socialai-pro:
     build: .
-    container_name: equestionbankbd-agent
+    container_name: socialai-pro
     restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - NODE_ENV=production
     volumes:
-      # Persist the database across restarts
+      # SQLite database (vendors, messages, orders, etc.)
       - ./data:/app/data
-      # Allow the Knowledge editor to save changes (and keep them)
-      - ./knowledge:/app/knowledge
-      # Let the in-dashboard Configuration editor read/write your .env
+      # Platform .env (webhook verify token, JWT secret, super admin)
       - ./.env:/app/.env
+      # Live UI + compiled backend (no rebuild needed for dashboard changes)
+      - ./public:/app/public
+      - ./dist:/app/dist

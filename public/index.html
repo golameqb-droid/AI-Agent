@@ -1,65 +1,428 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eQuestionBankBD · AI Agent</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <!-- Login screen -->
-    <div id="login" class="login-screen">
-      <form id="loginForm" class="login-card">
-        <div class="brand-badge">eQ</div>
-        <h1>eQuestionBankBD</h1>
-        <p class="muted">AI Agent Control Panel</p>
-        <input id="loginUser" type="text" placeholder="Username" autocomplete="username" />
-        <input id="loginPass" type="password" placeholder="Password" autocomplete="current-password" />
-        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-        <p id="loginError" class="error-text"></p>
-      </form>
-    </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="SocialAI Pro — AI sales agent for Messenger, WhatsApp & Instagram. Built for Bangladesh businesses." />
+  <title>SocialAI Pro — AI Sales Agent for Facebook, Instagram & WhatsApp</title>
+  <link rel="stylesheet" href="/landing.css?v=8.5" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+</head>
+<body class="lp">
+  <div class="lp-ambient" aria-hidden="true"></div>
+  <div class="lp-wrap">
+    <header class="lp-nav" id="lpNav">
+      <div class="lp-container lp-nav-inner">
+        <a href="/" class="lp-logo">
+          <img src="/assets/logo.svg" alt="" width="32" height="32" />
+          SocialAI Pro
+        </a>
+        <nav class="lp-nav-links">
+          <a href="#features">Features</a>
+          <a href="#case-studies">Case Studies</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="/pricing">Pricing</a>
+        </nav>
+        <div class="lp-nav-actions">
+          <a href="/app" class="lp-btn lp-btn-ghost">Sign in</a>
+          <a href="/app#register" class="lp-btn lp-btn-primary">Start free trial</a>
+        </div>
+        <button class="lp-menu" id="lpMenu" aria-label="Open menu">Menu</button>
+      </div>
+      <div class="lp-container lp-mobile" id="lpMobile">
+        <a href="#features">Features</a>
+        <a href="#case-studies">Case Studies</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/app">Sign in</a>
+        <a href="/app#register" class="lp-btn lp-btn-primary">Start free trial</a>
+      </div>
+    </header>
 
-    <!-- App shell -->
-    <div id="app" class="app hidden">
-      <aside class="sidebar">
-        <div class="logo">
-          <div class="brand-badge">eQ</div>
-          <div>
-            <strong>eQuestionBankBD</strong>
-            <span class="muted">AI Agent</span>
+    <section class="lp-hero lp-container">
+      <div class="lp-hero-in">
+        <div class="lp-hero-item" style="--i:0"><div class="lp-pill"><span class="lp-pill-dot"></span> AI image recognition now live</div></div>
+        <div class="lp-hero-item" style="--i:1">
+          <h1 class="lp-h1">
+            Your AI sales agent for<br />
+            <span class="lp-gradient-text">Facebook, Instagram &amp; WhatsApp</span>
+          </h1>
+        </div>
+        <div class="lp-hero-item" style="--i:2">
+          <p class="lp-lead">
+            SocialAI Pro replies to customers, takes orders, and closes sales across every channel — so you can focus on growing your business in Bangladesh.
+          </p>
+        </div>
+        <div class="lp-hero-item" style="--i:3">
+          <div class="lp-hero-cta">
+            <a href="/app#register" class="lp-btn lp-btn-primary lp-btn-lg">Start 14-day free trial</a>
+            <a href="#showcase" class="lp-btn lp-btn-outline lp-btn-lg">See the product</a>
           </div>
         </div>
-        <nav class="nav">
-          <button class="nav-item active" data-view="dashboard"><span>📊</span> Dashboard</button>
-          <button class="nav-item" data-view="inbox"><span>💬</span> Inbox <i class="badge" id="badgeInbox"></i></button>
-          <button class="nav-item" data-view="comments"><span>📝</span> Comments <i class="badge" id="badgeComments"></i></button>
-          <button class="nav-item" data-view="posts"><span>🚀</span> Create Post</button>
-          <button class="nav-item" data-view="knowledge"><span>🧠</span> Knowledge</button>
-          <button class="nav-item" data-view="settings"><span>⚙️</span> Settings</button>
-          <button class="nav-item" data-view="config"><span>🔑</span> Configuration</button>
-        </nav>
-        <div class="sidebar-foot">
-          <div id="statusPill" class="status-pill">checking…</div>
-          <button id="logoutBtn" class="btn btn-ghost btn-block">Log out</button>
+        <div class="lp-hero-item" style="--i:4">
+          <p class="lp-trust">
+            <span>No credit card</span>
+            <span>Bangla · English · Banglish</span>
+            <span>bKash · Nagad · SSLCommerz</span>
+          </p>
         </div>
-      </aside>
+        <div class="lp-hero-item lp-hero-product" style="--i:5">
+          <div class="lp-product" id="showcase">
+            <div class="lp-product-glow" aria-hidden="true"></div>
+            <div class="lp-product-frame" id="lpProductFrame">
+              <img src="/images/hero-dashboard.png" alt="SocialAI Pro omnichannel inbox dashboard" width="1040" height="585" loading="eager" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      <main class="content">
-        <header class="topbar">
-          <h2 id="viewTitle">Dashboard</h2>
-          <button class="btn btn-ghost" id="refreshBtn">↻ Refresh</button>
-        </header>
-        <div id="view" class="view"></div>
-      </main>
-    </div>
+    <section class="lp-logos lp-container lp-reveal">
+      <p>Trusted by growing businesses in Bangladesh</p>
+      <div class="lp-logo-track">
+        <div class="lp-logo-inner">
+          <span>TV HUT</span><span>VAPOR WORLD</span><span>EZI CLICK</span><span>ONE MART</span><span>JATRA BIROTI</span><span>MATITA RESORT</span><span>SSB LEATHER</span>
+          <span>TV HUT</span><span>VAPOR WORLD</span><span>EZI CLICK</span><span>ONE MART</span><span>JATRA BIROTI</span><span>MATITA RESORT</span><span>SSB LEATHER</span>
+        </div>
+      </div>
+    </section>
 
-    <div id="toast" class="toast"></div>
-    <script src="/app.js"></script>
-  </body>
+    <section class="lp-container lp-reveal">
+      <div class="lp-stats lp-stagger" id="lpStats">
+        <div class="lp-stat"><strong>18K+</strong><span>messages / month on Pro</span></div>
+        <div class="lp-stat"><strong>&lt;3s</strong><span>average AI response</span></div>
+        <div class="lp-stat"><strong>3-in-1</strong><span>omnichannel inbox</span></div>
+        <div class="lp-stat"><strong>24/7</strong><span>always-on sales agent</span></div>
+      </div>
+    </section>
+
+    <section class="lp-section lp-container lp-reveal" id="problem">
+      <div class="lp-section-head">
+        <p class="lp-eyebrow">The problem</p>
+        <h2 class="lp-h2">You're losing sales from missed messages</h2>
+        <p class="lp-section-desc">Every unread DM is revenue walking to a competitor who replies first.</p>
+      </div>
+      <div class="lp-cards-3 lp-stagger">
+        <article class="lp-card">
+          <div class="lp-card-num">01</div>
+          <h3>Lost customers</h3>
+          <p>Buyers choose whoever replies first. Slow responses mean lost sales every day.</p>
+        </article>
+        <article class="lp-card">
+          <div class="lp-card-num">02</div>
+          <h3>Scattered inboxes</h3>
+          <p>Messenger, WhatsApp, and Instagram messages pile up — impossible to manage alone.</p>
+        </article>
+        <article class="lp-card">
+          <div class="lp-card-num">03</div>
+          <h3>Repetitive questions</h3>
+          <p>Hours spent answering the same price, stock, and delivery questions.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="lp-section lp-container lp-reveal" id="features">
+      <div class="lp-section-head">
+        <p class="lp-eyebrow">Features</p>
+        <h2 class="lp-h2">What SocialAI Pro does</h2>
+        <p class="lp-section-desc">Everything your AI sales agent needs to sell across social channels.</p>
+      </div>
+
+      <div class="lp-features lp-stagger">
+        <article class="lp-feat lp-feat-hero">
+          <div class="lp-feat-text">
+            <span class="lp-feat-tag">Core feature</span>
+            <h3>Image Recognition</h3>
+            <p>Customer sends a photo — AI identifies the product and replies with price, size &amp; options.</p>
+          </div>
+          <div class="lp-feat-media">
+            <img src="/images/feature-image-recognition.png" alt="AI image recognition in chat" loading="lazy" />
+          </div>
+        </article>
+
+        <div class="lp-feat-row">
+          <article class="lp-feat lp-feat-card">
+            <div class="lp-feat-media">
+              <img src="/images/feature-multilingual.png" alt="Multilingual AI support" loading="lazy" />
+            </div>
+            <div class="lp-feat-text compact">
+              <h3>Multilingual</h3>
+              <p>Bangla, English &amp; Banglish — replies in your customer's language.</p>
+            </div>
+          </article>
+
+          <article class="lp-feat lp-feat-card">
+            <div class="lp-feat-media ui-only lp-preview-inbox">
+              <div class="lp-mini-ui">
+                <div class="lp-mini-tabs"><span class="on">All</span><span>FB</span><span>WA</span><span>IG</span></div>
+                <div class="lp-mini-row"><i class="dot purple"></i> Habibullah · Priority</div>
+                <div class="lp-mini-row"><i class="dot green"></i> Rakib · Order placed</div>
+                <div class="lp-mini-row"><i class="dot orange"></i> Sadia · High prospect</div>
+              </div>
+            </div>
+            <div class="lp-feat-text compact">
+              <h3>Unified Inbox</h3>
+              <p>Facebook, Instagram &amp; WhatsApp in one dashboard.</p>
+            </div>
+          </article>
+
+          <article class="lp-feat lp-feat-card">
+            <div class="lp-feat-media ui-only lp-preview-complaint">
+              <div class="lp-mini-ui">
+                <div class="lp-mini-alert">⚠ Complaint detected</div>
+                <div class="lp-mini-bubble bn dark">My order hasn't arrived</div>
+                <div class="lp-mini-bubble warn">→ Routed to Complaints</div>
+              </div>
+            </div>
+            <div class="lp-feat-text compact">
+              <h3>Complaint Routing</h3>
+              <p>AI flags issues and routes them for fast follow-up.</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="lp-feat-row lp-feat-row-2">
+          <article class="lp-feat lp-feat-card lp-feat-orders">
+            <div class="lp-feat-media ui-only lp-preview-orders">
+              <div class="lp-mini-ui">
+                <div class="lp-mini-table">
+                  <div class="lp-mini-th"><span>Order</span><span>Status</span></div>
+                  <div class="lp-mini-tr"><span>#1842</span><span class="ok">Confirmed</span></div>
+                  <div class="lp-mini-tr"><span>#1843</span><span class="ok">Shipped</span></div>
+                  <div class="lp-mini-tr"><span>#1844</span><span class="ok">Delivered</span></div>
+                </div>
+                <div class="lp-mini-export">↓ Export to Excel</div>
+              </div>
+            </div>
+            <div class="lp-feat-text compact">
+              <h3>Orders &amp; Export</h3>
+              <p>Capture orders from chat and export to Excel for your team.</p>
+            </div>
+          </article>
+
+          <article class="lp-feat lp-feat-card">
+            <div class="lp-feat-media ui-only lp-preview-posts">
+              <div class="lp-mini-ui">
+                <div class="lp-mini-post"><span class="scheduled">Scheduled</span> New collection launch — 6:00 PM</div>
+                <div class="lp-mini-post"><span class="scheduled">AI draft</span> Weekend sale post — Bangla + English</div>
+                <div class="lp-mini-post"><span class="scheduled">Bulk</span> 12 posts queued this week</div>
+              </div>
+            </div>
+            <div class="lp-feat-text compact">
+              <h3>Post Scheduling</h3>
+              <p>AI-written posts, templates &amp; bulk scheduling for your pages.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="lp-section lp-container lp-reveal" id="how-it-works">
+      <div class="lp-section-head">
+        <p class="lp-eyebrow">Get started</p>
+        <h2 class="lp-h2">Live in 3 simple steps</h2>
+        <p class="lp-section-desc">From setup to your first AI reply — built for Bangladeshi businesses.</p>
+      </div>
+      <div class="lp-steps lp-stagger" id="lpSteps">
+        <article class="lp-step">
+          <div class="lp-step-num">01</div>
+          <h3>Connect channels</h3>
+          <p>Link Facebook, Instagram, or WhatsApp. We pull every conversation into one inbox.</p>
+        </article>
+        <article class="lp-step">
+          <div class="lp-step-num">02</div>
+          <h3>Add your catalog</h3>
+          <p>Upload products and knowledge. AI learns your prices, tone, and policies.</p>
+        </article>
+        <article class="lp-step">
+          <div class="lp-step-num">03</div>
+          <h3>Let AI sell</h3>
+          <p>Turn on automation. AI replies, recommends, and takes orders — you monitor from the dashboard.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="lp-section lp-container lp-reveal" id="case-studies">
+      <div class="lp-section-head">
+        <p class="lp-eyebrow">Success stories</p>
+        <h2 class="lp-h2">Case studies</h2>
+        <p class="lp-section-desc">Real results from businesses using SocialAI Pro across Bangladesh.</p>
+      </div>
+
+      <article class="lp-case lp-reveal">
+        <div class="lp-case-body">
+          <div class="lp-case-tag">Electronics</div>
+          <blockquote class="lp-quote">
+            "Response time dropped from hours to seconds. Our team finally focuses on growth, not inbox."
+            <cite>— Operations lead, TV Hut</cite>
+          </blockquote>
+          <p>TV Hut streamlined customer queries and accelerated their lead-to-purchase flow with AI automation.</p>
+          <div class="lp-metrics">
+            <div><strong>80%</strong><span>AI automation rate</span></div>
+            <div><strong>25%</strong><span>order increase</span></div>
+          </div>
+        </div>
+        <div class="lp-case-visual">
+          <img src="/images/case-tvhut.jpg" alt="Modern electronics retail store" loading="lazy" />
+        </div>
+      </article>
+
+      <article class="lp-case lp-reveal">
+        <div class="lp-case-body">
+          <div class="lp-case-tag">Restaurant</div>
+          <blockquote class="lp-quote">
+            "FAQ handling is effortless now. Guest communication stays smooth even on busy nights."
+            <cite>— Manager, Jatra Biroti</cite>
+          </blockquote>
+          <p>Jatra Biroti keeps cultural events running while AI handles routine guest questions 24/7.</p>
+          <div class="lp-metrics">
+            <div><strong>86%</strong><span>AI automation rate</span></div>
+            <div><strong>10s</strong><span>avg. response time</span></div>
+          </div>
+        </div>
+        <div class="lp-case-visual">
+          <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80" alt="Restaurant interior" loading="lazy" />
+        </div>
+      </article>
+
+      <article class="lp-case lp-reveal">
+        <div class="lp-case-body">
+          <div class="lp-case-tag">E-commerce</div>
+          <blockquote class="lp-quote">
+            "Order generation from chat is faster than ever. Support cost dropped significantly."
+            <cite>— Founder, One Mart</cite>
+          </blockquote>
+          <p>One Mart simplified customer support and made social-commerce order capture seamless.</p>
+          <div class="lp-metrics">
+            <div><strong>82%</strong><span>AI automation rate</span></div>
+            <div><strong>32%</strong><span>order increase</span></div>
+          </div>
+        </div>
+        <div class="lp-case-visual">
+          <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80" alt="E-commerce fulfillment" loading="lazy" />
+        </div>
+      </article>
+    </section>
+
+    <section class="lp-section lp-container lp-reveal" id="pricing">
+      <div class="lp-section-head">
+        <p class="lp-eyebrow">Pricing</p>
+        <h2 class="lp-h2">Simple, transparent plans</h2>
+        <p class="lp-section-desc">Start free for 14 days. Scale when you're ready.</p>
+      </div>
+      <div class="lp-pricing lp-stagger" id="landingPricing">
+        <article class="lp-price-card">
+          <h3>Pro</h3>
+          <div class="lp-price">৳12,500 <small>/mo</small></div>
+          <p class="lp-price-sub">Growing teams up to 8 users</p>
+          <ul class="lp-price-features">
+            <li>18,000 messages / month</li>
+            <li>Messenger + WhatsApp + Instagram</li>
+            <li>Omnichannel inbox</li>
+            <li>Image supported replies</li>
+            <li>Multilingual support</li>
+          </ul>
+          <a href="/app#register" class="lp-btn lp-btn-outline" style="width:100%">Start free trial</a>
+        </article>
+        <article class="lp-price-card featured">
+          <div class="lp-price-badge">Most popular</div>
+          <h3>Elite</h3>
+          <div class="lp-price">৳26,000 <small>/mo</small></div>
+          <p class="lp-price-sub">Growing teams up to 10 users</p>
+          <ul class="lp-price-features">
+            <li>40,000 messages / month</li>
+            <li>All 3 channels included</li>
+            <li>Priority support</li>
+            <li>Comment automation</li>
+            <li>Orders &amp; Excel export</li>
+          </ul>
+          <a href="/app#register" class="lp-btn lp-btn-primary" style="width:100%">Start free trial</a>
+        </article>
+        <article class="lp-price-card">
+          <h3>Enterprise</h3>
+          <div class="lp-price">Custom</div>
+          <p class="lp-price-sub">For large teams &amp; custom limits</p>
+          <ul class="lp-price-features">
+            <li>Unlimited messages</li>
+            <li>Dedicated onboarding</li>
+            <li>Custom integrations</li>
+            <li>SLA &amp; priority support</li>
+            <li>Multi-brand management</li>
+          </ul>
+          <a href="mailto:sales@socialai.pro" class="lp-btn lp-btn-outline" style="width:100%">Contact sales</a>
+        </article>
+      </div>
+      <p style="text-align:center;margin-top:28px;font-size:14px;color:var(--lp-muted)">
+        <a href="/pricing" style="color:var(--lp-accent)">Compare all plans &amp; features →</a>
+      </p>
+    </section>
+
+    <section class="lp-section lp-container lp-reveal" id="faq">
+      <div class="lp-section-head">
+        <p class="lp-eyebrow">FAQ</p>
+        <h2 class="lp-h2">Common questions</h2>
+      </div>
+      <div class="lp-faq">
+        <div class="lp-faq-item">
+          <button class="lp-faq-q">Do AI replies count toward my message limit?</button>
+          <div class="lp-faq-a"><p>Yes — each AI reply and comment response counts toward your monthly plan. Trial includes 500 messages to test the platform.</p></div>
+        </div>
+        <div class="lp-faq-item">
+          <button class="lp-faq-q">Can I use Bangla and Banglish?</button>
+          <div class="lp-faq-a"><p>Absolutely. SocialAI Pro detects your customer's language and replies naturally in Bangla, English, or Banglish.</p></div>
+        </div>
+        <div class="lp-faq-item">
+          <button class="lp-faq-q">Which channels are included?</button>
+          <div class="lp-faq-a"><p>Trial includes Messenger only. Pro and Elite include Messenger, WhatsApp, and Instagram in one unified inbox.</p></div>
+        </div>
+        <div class="lp-faq-item">
+          <button class="lp-faq-q">How do I pay?</button>
+          <div class="lp-faq-a"><p>We support bKash, Nagad, and SSLCommerz — built for Bangladesh businesses.</p></div>
+        </div>
+      </div>
+
+      <div class="lp-cta-band">
+        <h2>Ready to hire your AI sales agent?</h2>
+        <p>Join businesses across Bangladesh automating customer conversations.</p>
+        <div class="lp-hero-cta">
+          <a href="/app#register" class="lp-btn lp-btn-primary lp-btn-lg">Start free trial</a>
+          <a href="/pricing" class="lp-btn lp-btn-outline lp-btn-lg">View pricing</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="lp-footer lp-container">
+      <div class="lp-footer-grid">
+        <div class="lp-footer-brand">
+          <a href="/" class="lp-logo">
+            <img src="/assets/logo.svg" alt="" width="32" height="32" />
+            SocialAI Pro
+          </a>
+          <p>Omnichannel AI for Messenger, WhatsApp &amp; Instagram — built for Bangladesh.</p>
+        </div>
+        <div class="lp-footer-col">
+          <h4>Product</h4>
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="/pricing">Pricing</a>
+        </div>
+        <div class="lp-footer-col">
+          <h4>Company</h4>
+          <a href="#case-studies">Case studies</a>
+          <a href="mailto:sales@socialai.pro">Contact sales</a>
+          <a href="/app">Sign in</a>
+        </div>
+        <div class="lp-footer-col">
+          <h4>Legal</h4>
+          <a href="#">Privacy policy</a>
+          <a href="#">Terms of service</a>
+        </div>
+      </div>
+      <p class="lp-footer-copy">© 2026 SocialAI Pro. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <script src="/landing.js?v=8.5"></script>
+</body>
 </html>

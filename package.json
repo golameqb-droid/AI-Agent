@@ -1,7 +1,7 @@
 {
-  "name": "equestionbankbd-ai-agent",
-  "version": "1.0.0",
-  "description": "AI agent that manages the eQuestionBankBD Facebook page: auto-replies to comments and messages, creates and schedules posts, and answers customers in Banglish.",
+  "name": "socialai-pro",
+  "version": "2.0.0",
+  "description": "SocialAI Pro — multi-vendor SaaS for AI-powered Facebook page management, Messenger automation, and vendor dashboards.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -20,14 +20,20 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.11",
     "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.7.4",
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.1",
