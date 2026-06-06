@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
-import { setVendorSettings, getVendorSetting } from "./vendor.js";
+import { getVendorById, setVendorSettings, getVendorSetting } from "./vendor.js";
+import { planAllowsChannel } from "./plans.js";
 import {
   getPlatformMetaConfig,
   metaAppConfigured,
@@ -8,18 +9,32 @@ import {
 } from "./platform-meta.js";
 
 const GRAPH = "v21.0";
-const SCOPES = [
+
+/** Messenger + comments — usually enough for trial / standard access in Live mode. */
+const MESSENGER_SCOPES = [
   "pages_show_list",
   "pages_messaging",
   "pages_read_engagement",
   "pages_manage_engagement",
   "pages_manage_metadata",
-  "instagram_basic",
-  "instagram_manage_messages",
-  "business_management",
-  "whatsapp_business_management",
-  "whatsapp_business_messaging",
-].join(",");
+] as const;
+
+/** Build OAuth scopes from vendor plan — avoids blocked permissions in Live mode. */
+export function oauthScopesForVendor(vendorId: number): string {
+  const vendor = getVendorById(vendorId);
+  const plan = vendor?.plan ?? "trial";
+  const scopes = new Set<string>(MESSENGER_SCOPES);
+  if (planAllowsChannel(plan, "instagram")) {
+    scopes.add("instagram_basic");
+    scopes.add("instagram_manage_messages");
+  }
+  if (planAllowsChannel(plan, "whatsapp")) {
+    scopes.add("business_management");
+    scopes.add("whatsapp_business_management");
+    scopes.add("whatsapp_business_messaging");
+  }
+  return [...scopes].join(",");
+}
 
 export interface MetaPageOption {
   id: string;
@@ -46,7 +61,8 @@ export function buildMetaOAuthUrl(vendorId: number): string {
     expiresIn: "15m",
   });
   const redirect = encodeURIComponent(metaOAuthRedirectUri());
-  return `https://www.facebook.com/${GRAPH}/dialog/oauth?client_id=${encodeURIComponent(appId)}&redirect_uri=${redirect}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(SCOPES)}&response_type=code`;
+  const scope = oauthScopesForVendor(vendorId);
+  return `https://www.facebook.com/${GRAPH}/dialog/oauth?client_id=${encodeURIComponent(appId)}&redirect_uri=${redirect}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(scope)}&response_type=code`;
 }
 
 export function verifyOAuthState(state: string): number {
