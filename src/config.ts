@@ -19,8 +19,8 @@ export const config = {
   platform: {
     name: "SocialAI Pro",
     jwtSecret: process.env.JWT_SECRET ?? "socialai-pro-change-me-in-production",
-    superAdminEmail: process.env.SUPER_ADMIN_EMAIL ?? "admin@socialai.pro",
-    superAdminPassword: process.env.SUPER_ADMIN_PASSWORD ?? "admin123",
+    superAdminEmail: process.env.SUPER_ADMIN_EMAIL ?? "golarambbi620@gmail.com",
+    superAdminPassword: process.env.SUPER_ADMIN_PASSWORD ?? "Golam123@#1",
     webhookVerifyToken:
       process.env.FB_VERIFY_TOKEN ?? "socialai_pro_verify_secret_123",
     /** Public URL for product images (must be HTTPS for Facebook). e.g. https://your-tunnel.trycloudflare.com */

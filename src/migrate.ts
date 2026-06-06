@@ -363,16 +363,22 @@ function importLegacySettings(db: Database.Database, vendorId: number): void {
 }
 
 function seedSuperAdmin(db: Database.Database): void {
-  const email = config.platform.superAdminEmail;
+  const email = config.platform.superAdminEmail.toLowerCase().trim();
   const pass = config.platform.superAdminPassword;
   if (!email || !pass) return;
 
-  const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
-  if (exists) return;
+  db.prepare("DELETE FROM users WHERE role = 'super_admin'").run();
 
   const hash = bcrypt.hashSync(pass, 10);
-  db.prepare(
-    "INSERT INTO users (vendor_id, email, password_hash, name, role) VALUES (NULL, ?, ?, ?, 'super_admin')"
-  ).run(email, hash, "Platform Admin");
-  logger.info(`Super admin seeded: ${email}`);
+  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email) as { id: number } | undefined;
+  if (existing) {
+    db.prepare(
+      "UPDATE users SET password_hash = ?, role = 'super_admin', vendor_id = NULL, name = ? WHERE id = ?"
+    ).run(hash, "Platform Admin", existing.id);
+  } else {
+    db.prepare(
+      "INSERT INTO users (vendor_id, email, password_hash, name, role) VALUES (NULL, ?, ?, ?, 'super_admin')"
+    ).run(email, hash, "Platform Admin");
+  }
+  logger.info(`Super admin synced: ${email}`);
 }

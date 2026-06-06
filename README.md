@@ -69,8 +69,10 @@ Open **http://localhost:3000**
 | **Super Admin** | Admin tab → `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` from `.env` |
 
 Default super admin (change in `.env`):
-- Email: `admin@socialai.pro`
-- Password: `admin123`
+- Email: `golarambbi620@gmail.com`
+- Password: set via `SUPER_ADMIN_PASSWORD` in `.env`
+
+Production app URL: `https://socialaipro-app.equestionbankbd.com`
 
 ### Each vendor sets up
 
