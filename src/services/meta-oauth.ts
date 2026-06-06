@@ -131,10 +131,22 @@ export function clearPendingPages(vendorId: number): void {
   setVendorSettings(vendorId, { META_OAUTH_PENDING_PAGES: "" });
 }
 
+/** Subscribe Page to app webhooks (messages, postbacks, comments). */
+async function subscribePageWebhooks(pageId: string, pageToken: string): Promise<void> {
+  const fields = ["messages", "messaging_postbacks", "feed"].join(",");
+  const url = `https://graph.facebook.com/${GRAPH}/${pageId}/subscribed_apps?subscribed_fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(pageToken)}`;
+  const res = await fetch(url, { method: "POST" });
+  const data: any = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message ?? `Page webhook subscribe failed (${res.status})`);
+  }
+}
+
 export async function applySelectedPage(vendorId: number, pageId: string): Promise<MetaPageOption | null> {
   const pages = loadPendingPages(vendorId);
   const page = pages.find((p) => p.id === pageId);
   if (!page) return null;
+  await subscribePageWebhooks(page.id, page.accessToken);
   const updates: Record<string, string> = {
     FB_PAGE_ID: page.id,
     FB_PAGE_ACCESS_TOKEN: page.accessToken,
