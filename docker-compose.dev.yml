@@ -2,7 +2,7 @@
 services:
   socialai-pro:
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./public:/app/public
       - ./dist:/app/dist
