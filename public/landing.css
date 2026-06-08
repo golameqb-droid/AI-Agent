@@ -83,7 +83,7 @@ html { scroll-behavior: smooth; }
   display: flex;
   align-items: center;
   gap: 32px;
-  padding: 24px 0;
+  padding: 18px 0;
 }
 .lp-logo {
   display: flex;
@@ -94,19 +94,18 @@ html { scroll-behavior: smooth; }
   letter-spacing: -0.02em;
 }
 .lp-logo-img {
-  height: 224px;
+  height: 72px;
   width: auto;
-  max-width: min(420px, 72vw);
+  max-width: min(280px, 58vw);
   display: block;
 }
 .lp-footer-brand .lp-logo-img {
-  height: 208px;
-  max-width: 380px;
+  height: 64px;
+  max-width: 260px;
 }
 @media (max-width: 768px) {
-  .lp-nav-inner { padding: 16px 0; }
-  .lp-logo-img { height: 160px; max-width: 72vw; }
-  .lp-footer-brand .lp-logo-img { height: 140px; max-width: 68vw; }
+  .lp-logo-img { height: 56px; max-width: 62vw; }
+  .lp-footer-brand .lp-logo-img { height: 52px; }
 }
 .lp-nav-links {
   display: flex;
