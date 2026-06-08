@@ -31,9 +31,9 @@ export function getHandoffStatus(conversationId: number): HandoffStatus {
   return row?.handoff_status ?? "ai";
 }
 
+/** Only pause AI when a human vendor is actively replying — not when queued. */
 export function isHandoffActive(conversationId: number): boolean {
-  const s = getHandoffStatus(conversationId);
-  return s === "human_requested" || s === "human_active";
+  return getHandoffStatus(conversationId) === "human_active";
 }
 
 export function setHandoffStatus(conversationId: number, status: HandoffStatus): void {

@@ -87,7 +87,6 @@ async function deliverAiReply(
     try {
       const order = createOrderFromAi(cfg.vendorId, convo.id, parsed.order, convo.customer_name);
       if (order) {
-        setHandoffStatus(convo.id, "human_requested");
         logger.info(`[vendor ${cfg.vendorId}] Order ${order.order_number} created from AI`);
       }
     } catch (err) {

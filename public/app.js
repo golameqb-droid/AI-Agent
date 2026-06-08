@@ -693,7 +693,7 @@
     const msgs = await api(`/conversations/${c.id}/messages`);
     const handoffBar = c.handoff_status !== "ai"
       ? `<div class="handoff-bar">${handoffLabel(c.handoff_status)}
-        ${c.handoff_status === "human_requested" ? '<button class="btn btn-primary btn-sm" id="takeOverBtn">Take over</button>' : ""}
+        ${c.handoff_status === "human_requested" ? '<button class="btn btn-primary btn-sm" id="takeOverBtn">Take over</button><button class="btn btn-sm" id="releaseBtn">Resume AI</button>' : ""}
         ${c.handoff_status === "human_active" ? '<button class="btn btn-sm" id="releaseBtn">Release to AI</button>' : ""}
         </div>` : "";
     chat.innerHTML = `${handoffBar}<div class="chat-body" id="chatBody"></div>
