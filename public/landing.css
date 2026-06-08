@@ -93,7 +93,11 @@ html { scroll-behavior: smooth; }
   font-size: 15px;
   letter-spacing: -0.02em;
 }
-.lp-logo img { width: 32px; height: 32px; }
+.lp-logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+}
 .lp-nav-links {
   display: flex;
   gap: 28px;
