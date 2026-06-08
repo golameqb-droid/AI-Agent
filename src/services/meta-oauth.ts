@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
+import { logger } from "../logger.js";
 import { getVendorById, setVendorSettings, getVendorSetting } from "./vendor.js";
 import { planAllowsChannel } from "./plans.js";
 import {
@@ -20,17 +21,21 @@ const MESSENGER_SCOPES = [
   "business_management",
 ] as const;
 
-/** Build OAuth scopes from vendor plan — avoids blocked permissions in Live mode. */
+/** Read linked IG/WA during connect — requested on all plans so the page picker can show them. */
+const CONNECT_DISCOVERY_SCOPES = [
+  "instagram_basic",
+  "whatsapp_business_management",
+] as const;
+
+/** Build OAuth scopes from vendor plan — messaging scopes only on Pro+. */
 export function oauthScopesForVendor(vendorId: number): string {
   const vendor = getVendorById(vendorId);
   const plan = vendor?.plan ?? "trial";
-  const scopes = new Set<string>(MESSENGER_SCOPES);
+  const scopes = new Set<string>([...MESSENGER_SCOPES, ...CONNECT_DISCOVERY_SCOPES]);
   if (planAllowsChannel(plan, "instagram")) {
-    scopes.add("instagram_basic");
     scopes.add("instagram_manage_messages");
   }
   if (planAllowsChannel(plan, "whatsapp")) {
-    scopes.add("whatsapp_business_management");
     scopes.add("whatsapp_business_messaging");
   }
   return [...scopes].join(",");
@@ -89,7 +94,8 @@ async function fetchWhatsAppForPage(
       | undefined;
     if (!phone?.id) return {};
     return { phoneNumberId: phone.id, displayNumber: phone.display_phone_number };
-  } catch {
+  } catch (err: any) {
+    logger.warn(`WhatsApp lookup failed for page ${pageId}: ${err?.message ?? err}`);
     return {};
   }
 }
@@ -112,8 +118,8 @@ export async function exchangeCodeForPages(code: string): Promise<MetaPageOption
     try {
       const ig = await graphGet(`${p.id}?fields=instagram_business_account`, p.access_token);
       instagramAccountId = ig.instagram_business_account?.id;
-    } catch {
-      /* page may not have IG */
+    } catch (err: any) {
+      logger.warn(`Instagram lookup failed for page ${p.id}: ${err?.message ?? err}`);
     }
     const wa = await fetchWhatsAppForPage(p.id, p.access_token);
     out.push({

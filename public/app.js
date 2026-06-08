@@ -511,7 +511,11 @@
         <p class="section-hint">Messenger, Instagram DM, and WhatsApp auto-configure when linked to the page.</p>
         <div class="page-pick-list">${metaPages.pages.map((p) => `
           <div class="page-pick-item"><div><strong>${esc(p.name)}</strong>
-          <div class="muted">${p.hasInstagram ? "📸 Instagram" : ""} ${p.hasWhatsApp ? "📱 WhatsApp " + esc(p.whatsappDisplayNumber||"") : ""} ${!p.hasInstagram && !p.hasWhatsApp ? "Messenger only" : ""}</div></div>
+          <div class="muted">${[
+            "💬 Messenger",
+            p.hasInstagram ? "📸 Instagram" : "",
+            p.hasWhatsApp ? "📱 WhatsApp " + esc(p.whatsappDisplayNumber || "") : "",
+          ].filter(Boolean).join(" · ")}${!p.hasInstagram && !p.hasWhatsApp ? " (no IG/WA linked on this Page)" : ""}</div></div>
           <button class="btn btn-primary btn-sm" data-page="${esc(p.id)}">Connect</button></div>`).join("")}</div></div>` : "";
       v.innerHTML = `<div class="panel"><h3>Connect your channels</h3>
       <div class="oauth-panel">
