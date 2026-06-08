@@ -367,7 +367,10 @@
     if (!status) return;
     if (status === "pages") { currentView = "channels"; toast("Select your Facebook Page below", "ok"); }
     else if (status === "denied") toast("Meta login cancelled", "err");
-    else if (status === "no_pages") toast("No Facebook Pages found on this account", "err");
+    else if (status === "no_pages") {
+      currentView = "channels";
+      toast("No Pages returned — use the Facebook account that owns the Page, grant all permissions, then try again", "err");
+    }
     else if (status === "error") toast("Meta connection failed — check admin Meta App config", "err");
     history.replaceState({}, "", "/app");
   }
@@ -1431,11 +1434,19 @@
     if (manageVendorId) load(manageVendorId);
   }
 
-  // Boot
+  // Boot — keep session on transient /auth/me errors after Meta OAuth redirect
   if (token && user) {
-    api("/auth/me").then((r) => {
-      saveSession(token, r.user, r.vendor);
-      showApp();
-    }).catch(logout);
+    api("/auth/me")
+      .then((r) => {
+        saveSession(token, r.user, r.vendor);
+        showApp();
+      })
+      .catch((err) => {
+        const oauthReturn = new URLSearchParams(location.search).has("meta_oauth");
+        if (oauthReturn && token) {
+          showApp();
+          toast(err.message || "Could not refresh session — sign in again if pages are missing", "err");
+        } else logout();
+      });
   }
 })();

@@ -10,13 +10,14 @@ import {
 
 const GRAPH = "v21.0";
 
-/** Messenger + comments — usually enough for trial / standard access in Live mode. */
+/** Messenger + comments. business_management required when Page is in Business Manager. */
 const MESSENGER_SCOPES = [
   "pages_show_list",
   "pages_messaging",
   "pages_read_engagement",
   "pages_manage_engagement",
   "pages_manage_metadata",
+  "business_management",
 ] as const;
 
 /** Build OAuth scopes from vendor plan — avoids blocked permissions in Live mode. */
@@ -29,7 +30,6 @@ export function oauthScopesForVendor(vendorId: number): string {
     scopes.add("instagram_manage_messages");
   }
   if (planAllowsChannel(plan, "whatsapp")) {
-    scopes.add("business_management");
     scopes.add("whatsapp_business_management");
     scopes.add("whatsapp_business_messaging");
   }
