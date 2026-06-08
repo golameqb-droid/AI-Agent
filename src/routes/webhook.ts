@@ -54,6 +54,7 @@ webhookRouter.post("/webhook", async (req, res) => {
       for (const event of entry.messaging ?? []) {
         const psid = event.sender?.id;
         const text = event.message?.text;
+        const mid = event.message?.mid?.toString();
         if (!psid || !text || event.message?.is_echo) continue;
         const channel = event.message?.is_instagram_echo !== undefined || event.sender?.id?.startsWith?.("ig")
           ? "instagram"
@@ -62,7 +63,7 @@ webhookRouter.post("/webhook", async (req, res) => {
             : detectInstagramEvent(event)
               ? "instagram"
               : "messenger";
-        await handleIncomingMessage(vendorId, channel, psid, text);
+        await handleIncomingMessage(vendorId, channel, psid, text, undefined, mid);
       }
 
       for (const change of entry.changes ?? []) {

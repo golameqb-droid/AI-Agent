@@ -258,8 +258,14 @@ apiRouter.get("/analytics", (req: AuthedRequest, res) => {
 });
 
 // -------------------------- Conversations -----------------------
-apiRouter.get("/conversations", (req: AuthedRequest, res) => {
+apiRouter.get("/conversations", async (req: AuthedRequest, res) => {
   const vid = vendorId(req);
+  try {
+    const { syncVendorMessages } = await import("../services/message-sync.js");
+    await syncVendorMessages(vid);
+  } catch {
+    /* sync is best-effort */
+  }
   const channel = req.query.channel?.toString();
   const rows = channel
     ? (db

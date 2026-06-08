@@ -60,6 +60,13 @@ CREATE TABLE IF NOT EXISTS vendor_knowledge (
   runPhase3Migrations(db);
   runPhase4to6Migrations(db);
   repairMessagesForeignKey(db);
+  if (!hasColumn(db, "messages", "fb_mid")) {
+    db.exec(`ALTER TABLE messages ADD COLUMN fb_mid TEXT`);
+    db.exec(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_fb_mid ON messages(fb_mid) WHERE fb_mid IS NOT NULL`
+    );
+    logger.info("Added messages.fb_mid for Messenger sync deduplication");
+  }
 }
 
 /** Fix messages FK still pointing at conversations_old after interrupted migration. */

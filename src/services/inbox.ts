@@ -127,8 +127,13 @@ export async function handleIncomingMessage(
   channel: Channel,
   psid: string,
   text: string,
-  customerName?: string | null
+  customerName?: string | null,
+  fbMid?: string | null
 ) {
+  if (fbMid) {
+    const dup = db.prepare("SELECT id FROM messages WHERE fb_mid = ?").get(fbMid);
+    if (dup) return;
+  }
   if (!vendorCanUseChannel(vendorId, channel)) {
     logger.warn(`[vendor ${vendorId}] Plan does not include channel ${channel}`);
     return;
@@ -151,8 +156,8 @@ export async function handleIncomingMessage(
   const convo = upsertConversation(vendorId, channel, psid, name);
   recordMessageIn(vendorId);
   db.prepare(
-    "INSERT INTO messages (conversation_id, direction, text, status) VALUES (?, 'in', ?, 'sent')"
-  ).run(convo.id, text);
+    "INSERT INTO messages (conversation_id, direction, text, status, fb_mid) VALUES (?, 'in', ?, 'sent', ?)"
+  ).run(convo.id, text, fbMid ?? null);
   db.prepare(
     "UPDATE conversations SET last_message = ?, unread = unread + 1, updated_at = datetime('now') WHERE id = ?"
   ).run(text, convo.id);
