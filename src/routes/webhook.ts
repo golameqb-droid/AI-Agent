@@ -31,6 +31,18 @@ webhookRouter.post("/webhook", async (req, res) => {
     const body = req.body;
     if (body.object !== "page") return;
 
+    const msgCount = (body.entry ?? []).reduce(
+      (n: number, e: any) => n + (e.messaging?.length ?? 0),
+      0
+    );
+    const changeCount = (body.entry ?? []).reduce(
+      (n: number, e: any) => n + (e.changes?.length ?? 0),
+      0
+    );
+    if (msgCount || changeCount) {
+      logger.info(`Webhook page event: ${msgCount} message(s), ${changeCount} change(s)`);
+    }
+
     for (const entry of body.entry ?? []) {
       const pageId = String(entry.id ?? "");
       const vendorId = findVendorByPageId(pageId);
