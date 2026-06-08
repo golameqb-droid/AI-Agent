@@ -41,7 +41,7 @@
   --radius-lg: 16px;
   --radius-xl: 20px;
 
-  --sidebar-w: 260px;
+  --sidebar-w: 300px;
   --font: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
   --glow-cyan: 0 0 24px rgba(0, 229, 255, 0.18);
   --glow-violet: 0 0 28px rgba(139, 92, 246, 0.2);
@@ -201,14 +201,21 @@ a:hover { color: #66eeff; }
   max-width: 100%;
 }
 .brand-logo-login {
-  height: 96px;
+  height: 384px;
+  max-width: 100%;
   margin: 0 auto var(--space-4);
+  object-fit: contain;
 }
 .brand-logo-sidebar {
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  max-height: 176px;
   flex-shrink: 0;
   object-fit: contain;
+}
+.logo {
+  flex-wrap: wrap;
 }
 .sr-only {
   position: absolute;
@@ -1141,7 +1148,11 @@ textarea.inp { min-height: 110px; resize: vertical; line-height: 1.55; }
   color: var(--text);
   text-decoration: none;
 }
-.logo-link .brand-logo-img { height: 52px; }
+.logo-link .brand-logo-img {
+  height: 208px;
+  max-width: min(380px, 70vw);
+  object-fit: contain;
+}
 .logo-link strong { font-size: 16px; font-weight: 700; }
 
 .hero-eyebrow {
