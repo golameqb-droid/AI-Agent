@@ -46,6 +46,7 @@ export interface MetaPageOption {
   name: string;
   accessToken: string;
   instagramAccountId?: string;
+  whatsappBusinessAccountId?: string;
   whatsappPhoneNumberId?: string;
   whatsappDisplayNumber?: string;
 }
@@ -83,10 +84,13 @@ export function verifyOAuthState(state: string): { vendorId: number; returnTo?: 
   return { vendorId: payload.vendorId, returnTo: returnTo || undefined };
 }
 
-async function fetchWhatsAppPhone(
-  wabaId: string,
-  token: string
-): Promise<{ phoneNumberId?: string; displayNumber?: string }> {
+type WhatsAppLookup = {
+  wabaId?: string;
+  phoneNumberId?: string;
+  displayNumber?: string;
+};
+
+async function fetchWhatsAppPhone(wabaId: string, token: string): Promise<WhatsAppLookup> {
   const phones = await graphGet(
     `${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name`,
     token
@@ -94,15 +98,15 @@ async function fetchWhatsAppPhone(
   const phone = (phones.data ?? [])[0] as
     | { id: string; display_phone_number?: string }
     | undefined;
-  if (!phone?.id) return {};
-  return { phoneNumberId: phone.id, displayNumber: phone.display_phone_number };
+  if (!phone?.id) return { wabaId };
+  return { wabaId, phoneNumberId: phone.id, displayNumber: phone.display_phone_number };
 }
 
 async function fetchWhatsAppForPage(
   pageId: string,
   pageToken: string,
   userToken?: string
-): Promise<{ phoneNumberId?: string; displayNumber?: string }> {
+): Promise<WhatsAppLookup> {
   const pageFields = ["whatsapp_business_account", "connected_whatsapp_business_account"];
   for (const field of pageFields) {
     try {
@@ -157,6 +161,7 @@ export async function exchangeCodeForPages(code: string): Promise<MetaPageOption
       name: p.name,
       accessToken: p.access_token,
       instagramAccountId,
+      whatsappBusinessAccountId: wa.wabaId,
       whatsappPhoneNumberId: wa.phoneNumberId,
       whatsappDisplayNumber: wa.displayNumber,
     });
@@ -195,6 +200,17 @@ async function subscribePageWebhooks(pageId: string, pageToken: string): Promise
   }
 }
 
+/** Subscribe WhatsApp Business Account to app message webhooks. */
+async function subscribeWhatsAppWebhooks(wabaId: string, token: string): Promise<void> {
+  const url = `https://graph.facebook.com/${GRAPH}/${wabaId}/subscribed_apps?access_token=${encodeURIComponent(token)}`;
+  const res = await fetch(url, { method: "POST" });
+  const data: any = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message ?? `WhatsApp webhook subscribe failed (${res.status})`);
+  }
+  logger.info(`WhatsApp Business Account ${wabaId} subscribed to app webhooks`);
+}
+
 export async function applySelectedPage(vendorId: number, pageId: string): Promise<MetaPageOption | null> {
   const pages = loadPendingPages(vendorId);
   const page = pages.find((p) => p.id === pageId);
@@ -209,6 +225,14 @@ export async function applySelectedPage(vendorId: number, pageId: string): Promi
   if (page.whatsappPhoneNumberId) {
     updates.WA_PHONE_NUMBER_ID = page.whatsappPhoneNumberId;
     updates.WA_ACCESS_TOKEN = page.accessToken;
+    if (page.whatsappBusinessAccountId) {
+      updates.WA_BUSINESS_ACCOUNT_ID = page.whatsappBusinessAccountId;
+      try {
+        await subscribeWhatsAppWebhooks(page.whatsappBusinessAccountId, page.accessToken);
+      } catch (err: any) {
+        logger.warn(`WhatsApp webhook subscribe failed: ${err?.message ?? err}`);
+      }
+    }
   }
   setVendorSettings(vendorId, updates);
   clearPendingPages(vendorId);

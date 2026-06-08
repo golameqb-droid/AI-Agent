@@ -4,6 +4,7 @@ import { logger } from "../logger.js";
 import { handleIncomingMessage, handleIncomingComment } from "../services/inbox.js";
 import { findVendorByPageId } from "../services/vendor.js";
 import { findVendorByChannelKey } from "../services/channels.js";
+import { processWhatsAppWebhook } from "../services/whatsapp-webhook.js";
 
 export const webhookRouter = Router();
 
@@ -29,6 +30,10 @@ webhookRouter.post("/webhook", async (req, res) => {
   res.sendStatus(200);
   try {
     const body = req.body;
+    if (body.object === "whatsapp_business_account") {
+      await processWhatsAppWebhook(body);
+      return;
+    }
     if (body.object !== "page") return;
 
     const msgCount = (body.entry ?? []).reduce(
@@ -92,32 +97,11 @@ function detectInstagramEvent(event: any): boolean {
   return Boolean(event.message?.is_deleted === false && event.message?.mid && event.sender?.id);
 }
 
-/** WhatsApp Cloud API webhook. */
+/** WhatsApp Cloud API webhook (dedicated URL — same handler as /webhook). */
 webhookRouter.post("/webhook/whatsapp", async (req, res) => {
   res.sendStatus(200);
   try {
-    const body = req.body;
-    if (body.object !== "whatsapp_business_account") return;
-
-    for (const entry of body.entry ?? []) {
-      for (const change of entry.changes ?? []) {
-        if (change.field !== "messages") continue;
-        const value = change.value ?? {};
-        const phoneNumberId = String(value.metadata?.phone_number_id ?? "");
-        const vendorId = findVendorByChannelKey("WA_PHONE_NUMBER_ID", phoneNumberId);
-        if (!vendorId) {
-          logger.warn(`No vendor for WhatsApp phone ${phoneNumberId}`);
-          continue;
-        }
-        for (const msg of value.messages ?? []) {
-          if (msg.type !== "text") continue;
-          const from = msg.from;
-          const text = msg.text?.body;
-          const name = value.contacts?.[0]?.profile?.name ?? null;
-          if (from && text) await handleIncomingMessage(vendorId, "whatsapp", from, text, name);
-        }
-      }
-    }
+    await processWhatsAppWebhook(req.body);
   } catch (err) {
     logger.error("WhatsApp webhook error", err);
   }
