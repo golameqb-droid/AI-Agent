@@ -17,6 +17,40 @@
   const TOKEN_KEY = "sap_token";
   const USER_KEY = "sap_user";
   const VENDOR_KEY = "sap_vendor";
+  const OAUTH_BACKUP_KEY = "sap_oauth_backup";
+
+  function isMetaOAuthReturn() {
+    return new URLSearchParams(location.search).has("meta_oauth");
+  }
+
+  function backupSessionForOAuth() {
+    sessionStorage.setItem(
+      OAUTH_BACKUP_KEY,
+      JSON.stringify({
+        token,
+        user,
+        vendor,
+        at: Date.now(),
+      })
+    );
+  }
+
+  function restoreSessionAfterOAuth() {
+    if (!isMetaOAuthReturn()) return;
+    const raw = sessionStorage.getItem(OAUTH_BACKUP_KEY);
+    if (!raw) return;
+    try {
+      const b = JSON.parse(raw);
+      if (!b?.token || Date.now() - (b.at || 0) > 30 * 60 * 1000) return;
+      localStorage.setItem(TOKEN_KEY, b.token);
+      if (b.user) localStorage.setItem(USER_KEY, JSON.stringify(b.user));
+      if (b.vendor) localStorage.setItem(VENDOR_KEY, JSON.stringify(b.vendor));
+    } catch { /* ignore */ }
+    sessionStorage.removeItem(OAUTH_BACKUP_KEY);
+  }
+
+  let oauthReturnActive = isMetaOAuthReturn();
+  restoreSessionAfterOAuth();
 
   let token = localStorage.getItem(TOKEN_KEY) || "";
   let user = JSON.parse(localStorage.getItem(USER_KEY) || "null");
@@ -69,6 +103,10 @@
     });
     const data = await res.json().catch(() => ({}));
     if (res.status === 401 && !isAuthAttempt) {
+      if (oauthReturnActive) {
+        oauthReturnActive = false;
+        throw new Error("Session expired after Facebook login — sign in again to pick your Page.");
+      }
       logout();
       throw new Error("Session expired. Please sign in again.");
     }
@@ -365,6 +403,7 @@
     const p = new URLSearchParams(location.search);
     const status = p.get("meta_oauth");
     if (!status) return;
+    oauthReturnActive = true;
     if (status === "pages") { currentView = "channels"; toast("Select your Facebook Page below", "ok"); }
     else if (status === "denied") toast("Meta login cancelled", "err");
     else if (status === "no_pages") {
@@ -372,7 +411,8 @@
       toast("No Pages returned — use the Facebook account that owns the Page, grant all permissions, then try again", "err");
     }
     else if (status === "error") toast("Meta connection failed — check admin Meta App config", "err");
-    history.replaceState({}, "", "/app");
+    history.replaceState({}, "", location.pathname);
+    setTimeout(() => { oauthReturnActive = false; }, 15000);
   }
 
   // ---- Vendor views ----
@@ -555,7 +595,9 @@
       <div class="actions"><button class="btn btn-primary" id="saveChannels">Save channel settings</button></div>`;
       $("#metaOAuthBtn")?.addEventListener("click", async () => {
         try {
-          const r = await api("/meta/oauth/url");
+          backupSessionForOAuth();
+          const returnTo = location.origin + location.pathname;
+          const r = await api(`/meta/oauth/url?returnTo=${encodeURIComponent(returnTo)}`);
           window.location.href = r.url;
         } catch (e) { toast(e.message, "err"); }
       });
@@ -1438,19 +1480,26 @@
     if (manageVendorId) load(manageVendorId);
   }
 
-  // Boot — keep session on transient /auth/me errors after Meta OAuth redirect
-  if (token && user) {
+  // Boot — restore session after Meta OAuth redirect (Facebook round-trip can drop localStorage)
+  if (token) {
     api("/auth/me")
       .then((r) => {
         saveSession(token, r.user, r.vendor);
+        oauthReturnActive = false;
         showApp();
       })
       .catch((err) => {
-        const oauthReturn = new URLSearchParams(location.search).has("meta_oauth");
-        if (oauthReturn && token) {
-          showApp();
-          toast(err.message || "Could not refresh session — sign in again if pages are missing", "err");
+        if (isMetaOAuthReturn()) {
+          if (token && user) {
+            showApp();
+            toast(err.message || "Sign in again if your Page list is missing", "err");
+          } else {
+            toast("Facebook connected — sign in with the same account to select your Page", "ok");
+          }
         } else logout();
       });
+  } else if (isMetaOAuthReturn()) {
+    toast("Facebook connected — sign in with the same vendor account to select your Page", "ok");
+    currentView = "channels";
   }
 })();

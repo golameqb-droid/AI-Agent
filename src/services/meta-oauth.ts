@@ -59,45 +59,75 @@ function graphGet(path: string, token: string): Promise<any> {
   });
 }
 
-export function buildMetaOAuthUrl(vendorId: number): string {
+export function buildMetaOAuthUrl(vendorId: number, returnTo?: string): string {
   if (!metaAppConfigured()) throw new Error("Meta App ID/Secret not configured by admin");
   const { appId } = getPlatformMetaConfig();
-  const state = jwt.sign({ vendorId, purpose: "meta_oauth" }, config.platform.jwtSecret, {
-    expiresIn: "15m",
-  });
+  const state = jwt.sign(
+    { vendorId, purpose: "meta_oauth", returnTo: returnTo?.slice(0, 512) ?? "" },
+    config.platform.jwtSecret,
+    { expiresIn: "15m" }
+  );
   const redirect = encodeURIComponent(metaOAuthRedirectUri());
   const scope = oauthScopesForVendor(vendorId);
   return `https://www.facebook.com/${GRAPH}/dialog/oauth?client_id=${encodeURIComponent(appId)}&redirect_uri=${redirect}&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(scope)}&response_type=code`;
 }
 
-export function verifyOAuthState(state: string): number {
-  const payload = jwt.verify(state, config.platform.jwtSecret) as { vendorId: number; purpose: string };
+export function verifyOAuthState(state: string): { vendorId: number; returnTo?: string } {
+  const payload = jwt.verify(state, config.platform.jwtSecret) as {
+    vendorId: number;
+    purpose: string;
+    returnTo?: string;
+  };
   if (payload.purpose !== "meta_oauth") throw new Error("Invalid OAuth state");
-  return payload.vendorId;
+  const returnTo = payload.returnTo?.trim();
+  return { vendorId: payload.vendorId, returnTo: returnTo || undefined };
+}
+
+async function fetchWhatsAppPhone(
+  wabaId: string,
+  token: string
+): Promise<{ phoneNumberId?: string; displayNumber?: string }> {
+  const phones = await graphGet(
+    `${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name`,
+    token
+  );
+  const phone = (phones.data ?? [])[0] as
+    | { id: string; display_phone_number?: string }
+    | undefined;
+  if (!phone?.id) return {};
+  return { phoneNumberId: phone.id, displayNumber: phone.display_phone_number };
 }
 
 async function fetchWhatsAppForPage(
   pageId: string,
-  pageToken: string
+  pageToken: string,
+  userToken?: string
 ): Promise<{ phoneNumberId?: string; displayNumber?: string }> {
-  const fields = "connected_whatsapp_business_account{id}";
-  try {
-    const page = await graphGet(`${pageId}?fields=${fields}`, pageToken);
-    const wabaId = page.connected_whatsapp_business_account?.id as string | undefined;
-    if (!wabaId) return {};
-    const phones = await graphGet(
-      `${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name`,
-      pageToken
-    );
-    const phone = (phones.data ?? [])[0] as
-      | { id: string; display_phone_number?: string }
-      | undefined;
-    if (!phone?.id) return {};
-    return { phoneNumberId: phone.id, displayNumber: phone.display_phone_number };
-  } catch (err: any) {
-    logger.warn(`WhatsApp lookup failed for page ${pageId}: ${err?.message ?? err}`);
-    return {};
+  const pageFields = ["whatsapp_business_account", "connected_whatsapp_business_account"];
+  for (const field of pageFields) {
+    try {
+      const page = await graphGet(`${pageId}?fields=${field}`, pageToken);
+      const wabaId = (page[field] as { id?: string } | undefined)?.id;
+      if (wabaId) return await fetchWhatsAppPhone(wabaId, pageToken);
+    } catch (err: any) {
+      logger.warn(`WhatsApp field ${field} failed for page ${pageId}: ${err?.message ?? err}`);
+    }
   }
+  if (userToken) {
+    try {
+      const biz = await graphGet(
+        "me/businesses?fields=owned_whatsapp_business_accounts{id}",
+        userToken
+      );
+      for (const b of biz.data ?? []) {
+        const waba = (b.owned_whatsapp_business_accounts?.data ?? [])[0] as { id?: string } | undefined;
+        if (waba?.id) return await fetchWhatsAppPhone(waba.id, userToken);
+      }
+    } catch (err: any) {
+      logger.warn(`WhatsApp business lookup failed: ${err?.message ?? err}`);
+    }
+  }
+  return {};
 }
 
 export async function exchangeCodeForPages(code: string): Promise<MetaPageOption[]> {
@@ -121,7 +151,7 @@ export async function exchangeCodeForPages(code: string): Promise<MetaPageOption
     } catch (err: any) {
       logger.warn(`Instagram lookup failed for page ${p.id}: ${err?.message ?? err}`);
     }
-    const wa = await fetchWhatsAppForPage(p.id, p.access_token);
+    const wa = await fetchWhatsAppForPage(p.id, p.access_token, userToken);
     out.push({
       id: p.id,
       name: p.name,

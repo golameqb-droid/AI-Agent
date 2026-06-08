@@ -20,7 +20,8 @@ function vendorId(req: AuthedRequest): number {
 /** Start Meta OAuth — returns redirect URL for vendor. */
 metaRouter.get("/oauth/url", requireAuth, requireVendor, (req: AuthedRequest, res) => {
   try {
-    const url = buildMetaOAuthUrl(vendorId(req));
+    const returnTo = req.query.returnTo?.toString();
+    const url = buildMetaOAuthUrl(vendorId(req), returnTo);
     res.json({ url, configured: metaAppConfigured() });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -42,13 +43,15 @@ metaRouter.get("/oauth/callback", async (req, res) => {
   }
 
   try {
-    const vendorId = verifyOAuthState(state);
+    const { vendorId, returnTo } = verifyOAuthState(state);
     const pages = await exchangeCodeForPages(code);
+    const base =
+      returnTo && /^https?:\/\//i.test(returnTo) ? returnTo.replace(/\/$/, "") : appUrl;
     if (!pages.length) {
-      return res.redirect(`${appUrl}?meta_oauth=no_pages`);
+      return res.redirect(`${base}?meta_oauth=no_pages`);
     }
     storePendingPages(vendorId, pages);
-    res.redirect(`${appUrl}?meta_oauth=pages`);
+    res.redirect(`${base}?meta_oauth=pages`);
   } catch {
     res.redirect(`${appUrl}?meta_oauth=error`);
   }
