@@ -2,14 +2,22 @@ import { logger } from "../logger.js";
 import type { VendorConfig } from "./vendor.js";
 import { getVendorSetting } from "./vendor.js";
 
+function waToken(cfg: VendorConfig): string | null {
+  return (
+    getVendorSetting(cfg.vendorId, "WA_ACCESS_TOKEN") ||
+    getVendorSetting(cfg.vendorId, "META_USER_ACCESS_TOKEN") ||
+    null
+  );
+}
+
 function waConfigured(cfg: VendorConfig): boolean {
-  return Boolean(getVendorSetting(cfg.vendorId, "WA_PHONE_NUMBER_ID") && getVendorSetting(cfg.vendorId, "WA_ACCESS_TOKEN"));
+  return Boolean(getVendorSetting(cfg.vendorId, "WA_PHONE_NUMBER_ID") && waToken(cfg));
 }
 
 export async function sendWhatsAppMessage(cfg: VendorConfig, to: string, text: string) {
   if (!text.trim()) return;
   const phoneId = getVendorSetting(cfg.vendorId, "WA_PHONE_NUMBER_ID");
-  const token = getVendorSetting(cfg.vendorId, "WA_ACCESS_TOKEN");
+  const token = waToken(cfg);
   if (!phoneId || !token) throw new Error("WhatsApp is not configured for this vendor.");
 
   const version = cfg.fbGraphVersion || "v21.0";
@@ -31,7 +39,7 @@ export async function sendWhatsAppMessage(cfg: VendorConfig, to: string, text: s
 
 export async function sendWhatsAppImage(cfg: VendorConfig, to: string, imageUrl: string) {
   const phoneId = getVendorSetting(cfg.vendorId, "WA_PHONE_NUMBER_ID");
-  const token = getVendorSetting(cfg.vendorId, "WA_ACCESS_TOKEN");
+  const token = waToken(cfg);
   if (!phoneId || !token) throw new Error("WhatsApp is not configured for this vendor.");
 
   const version = cfg.fbGraphVersion || "v21.0";

@@ -63,7 +63,8 @@ export function channelConfigured(cfg: VendorConfig, channel: Channel): boolean 
     case "whatsapp":
       return Boolean(
         getVendorSetting(cfg.vendorId, "WA_PHONE_NUMBER_ID") &&
-          getVendorSetting(cfg.vendorId, "WA_ACCESS_TOKEN")
+          (getVendorSetting(cfg.vendorId, "WA_ACCESS_TOKEN") ||
+            getVendorSetting(cfg.vendorId, "META_USER_ACCESS_TOKEN"))
       );
     case "instagram":
       return Boolean(getVendorSetting(cfg.vendorId, "IG_ACCOUNT_ID") && cfg.fbPageAccessToken);

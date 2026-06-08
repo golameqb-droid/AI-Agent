@@ -45,6 +45,8 @@ export interface MetaPageOption {
   id: string;
   name: string;
   accessToken: string;
+  /** User token from OAuth (has WhatsApp scopes); used for WA send/receive setup. */
+  userAccessToken?: string;
   instagramAccountId?: string;
   whatsappBusinessAccountId?: string;
   whatsappPhoneNumberId?: string;
@@ -134,6 +136,18 @@ async function fetchWhatsAppForPage(
   return {};
 }
 
+async function exchangeLongLivedUserToken(shortToken: string): Promise<string> {
+  const { appId, appSecret } = getPlatformMetaConfig();
+  const url =
+    `https://graph.facebook.com/${GRAPH}/oauth/access_token?grant_type=fb_exchange_token` +
+    `&client_id=${encodeURIComponent(appId)}&client_secret=${encodeURIComponent(appSecret)}` +
+    `&fb_exchange_token=${encodeURIComponent(shortToken)}`;
+  const res = await fetch(url);
+  const data: any = await res.json();
+  if (!res.ok || data.error) return shortToken;
+  return (data.access_token as string) || shortToken;
+}
+
 export async function exchangeCodeForPages(code: string): Promise<MetaPageOption[]> {
   const { appId, appSecret } = getPlatformMetaConfig();
   const redirect = encodeURIComponent(metaOAuthRedirectUri());
@@ -143,7 +157,7 @@ export async function exchangeCodeForPages(code: string): Promise<MetaPageOption
   if (!tokenRes.ok || tokenData.error) {
     throw new Error(tokenData.error?.message ?? "Failed to exchange OAuth code");
   }
-  const userToken = tokenData.access_token as string;
+  const userToken = await exchangeLongLivedUserToken(tokenData.access_token as string);
   const pagesData = await graphGet("me/accounts?fields=id,name,access_token", userToken);
   const pages = (pagesData.data ?? []) as { id: string; name: string; access_token: string }[];
   const out: MetaPageOption[] = [];
@@ -160,6 +174,7 @@ export async function exchangeCodeForPages(code: string): Promise<MetaPageOption
       id: p.id,
       name: p.name,
       accessToken: p.access_token,
+      userAccessToken: userToken,
       instagramAccountId,
       whatsappBusinessAccountId: wa.wabaId,
       whatsappPhoneNumberId: wa.phoneNumberId,
@@ -223,12 +238,14 @@ export async function applySelectedPage(vendorId: number, pageId: string): Promi
   };
   if (page.instagramAccountId) updates.IG_ACCOUNT_ID = page.instagramAccountId;
   if (page.whatsappPhoneNumberId) {
+    const waToken = page.userAccessToken || page.accessToken;
     updates.WA_PHONE_NUMBER_ID = page.whatsappPhoneNumberId;
-    updates.WA_ACCESS_TOKEN = page.accessToken;
+    updates.WA_ACCESS_TOKEN = waToken;
+    if (page.userAccessToken) updates.META_USER_ACCESS_TOKEN = page.userAccessToken;
     if (page.whatsappBusinessAccountId) {
       updates.WA_BUSINESS_ACCOUNT_ID = page.whatsappBusinessAccountId;
       try {
-        await subscribeWhatsAppWebhooks(page.whatsappBusinessAccountId, page.accessToken);
+        await subscribeWhatsAppWebhooks(page.whatsappBusinessAccountId, waToken);
       } catch (err: any) {
         logger.warn(`WhatsApp webhook subscribe failed: ${err?.message ?? err}`);
       }
