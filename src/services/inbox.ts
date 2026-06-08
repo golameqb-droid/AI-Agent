@@ -75,7 +75,8 @@ async function deliverAiReply(
   cfg: VendorConfig,
   convo: Conversation,
   rawDraft: string,
-  customerText: string
+  customerText: string,
+  allowAutoSend = true
 ): Promise<{ text: string; handoff: boolean }> {
   const channel = (convo.channel ?? "messenger") as Channel;
   const parsed = parseAiReply(rawDraft);
@@ -94,7 +95,7 @@ async function deliverAiReply(
     }
   }
 
-  if (cfg.autoReplyMessages) {
+  if (cfg.autoReplyMessages && allowAutoSend) {
     try {
       if (parsed.text) {
         await sendText(cfg, channel, convo.psid, parsed.text);
@@ -128,7 +129,8 @@ export async function handleIncomingMessage(
   psid: string,
   text: string,
   customerName?: string | null,
-  fbMid?: string | null
+  fbMid?: string | null,
+  allowAutoSend = true
 ) {
   if (fbMid) {
     const dup = db.prepare("SELECT id FROM messages WHERE fb_mid = ?").get(fbMid);
@@ -188,7 +190,7 @@ export async function handleIncomingMessage(
     return;
   }
 
-  await deliverAiReply(cfg, convo, draft, text);
+  await deliverAiReply(cfg, convo, draft, text, allowAutoSend);
 }
 
 /** Backward-compatible Messenger handler. */

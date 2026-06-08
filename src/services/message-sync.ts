@@ -52,7 +52,17 @@ export async function syncVendorMessages(vendorId: number): Promise<number> {
       const exists = db.prepare("SELECT id FROM messages WHERE fb_mid = ?").get(mid);
       if (exists) continue;
 
-      await handleIncomingMessage(vendorId, "messenger", psid, text, customer.name ?? null, mid);
+      const createdMs = m.created_time ? Date.parse(m.created_time) : Date.now();
+      const withinReplyWindow = Date.now() - createdMs < 23 * 60 * 60 * 1000;
+      await handleIncomingMessage(
+        vendorId,
+        "messenger",
+        psid,
+        text,
+        customer.name ?? null,
+        mid,
+        withinReplyWindow
+      );
       synced++;
     }
   }
