@@ -22,14 +22,21 @@ async function graphPost(cfg: VendorConfig, path: string, body: Record<string, u
   return data;
 }
 
-export async function sendMessage(cfg: VendorConfig, psid: string, text: string) {
+export async function sendMessage(
+  cfg: VendorConfig,
+  psid: string,
+  text: string,
+  channel: "messenger" | "instagram" = "messenger"
+) {
   if (!text.trim()) return;
-  logger.info(`[vendor ${cfg.vendorId}] Sending Messenger reply to ${psid}`);
-  return graphPost(cfg, `${cfg.fbPageId}/messages`, {
+  logger.info(`[vendor ${cfg.vendorId}] Sending ${channel} reply to ${psid}`);
+  const body: Record<string, unknown> = {
     recipient: { id: psid },
     messaging_type: "RESPONSE",
     message: { text },
-  });
+  };
+  if (channel === "instagram") body.messaging_product = "instagram";
+  return graphPost(cfg, `${cfg.fbPageId}/messages`, body);
 }
 
 /** Send an image attachment in Messenger (imageUrl must be public HTTPS). */

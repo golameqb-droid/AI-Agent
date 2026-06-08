@@ -61,13 +61,10 @@ webhookRouter.post("/webhook", async (req, res) => {
         const text = event.message?.text;
         const mid = event.message?.mid?.toString();
         if (!psid || !text || event.message?.is_echo) continue;
-        const channel = event.message?.is_instagram_echo !== undefined || event.sender?.id?.startsWith?.("ig")
-          ? "instagram"
-          : event.recipient?.id === pageId && event.message?.attachments
-            ? "instagram"
-            : detectInstagramEvent(event)
-              ? "instagram"
-              : "messenger";
+        const channel = detectMessageChannel(event, pageId);
+        if (channel === "instagram") {
+          logger.info(`Instagram DM from ${psid} on page ${pageId}`);
+        }
         await handleIncomingMessage(vendorId, channel, psid, text, undefined, mid);
       }
 
@@ -93,8 +90,18 @@ webhookRouter.post("/webhook", async (req, res) => {
   }
 });
 
-function detectInstagramEvent(event: any): boolean {
-  return Boolean(event.message?.is_deleted === false && event.message?.mid && event.sender?.id);
+/** Instagram DMs arrive on the Page webhook; recipient is usually the IG business account id. */
+function detectMessageChannel(event: any, pageId: string): "instagram" | "messenger" {
+  if (event.messaging_product === "instagram") return "instagram";
+  if (event.message?.is_instagram_echo !== undefined) return "instagram";
+
+  const recipientId = String(event.recipient?.id ?? "");
+  const senderId = String(event.sender?.id ?? "");
+
+  if (findVendorByChannelKey("IG_ACCOUNT_ID", recipientId)) return "instagram";
+  if (findVendorByChannelKey("IG_ACCOUNT_ID", senderId)) return "instagram";
+
+  return "messenger";
 }
 
 /** WhatsApp Cloud API webhook (dedicated URL — same handler as /webhook). */

@@ -33,9 +33,11 @@ export async function sendText(
       await sendWhatsAppMessage(cfg, userId, text);
       break;
     case "instagram":
+      await sendMessage(cfg, userId, text, "instagram");
+      break;
     case "messenger":
     default:
-      await sendMessage(cfg, userId, text);
+      await sendMessage(cfg, userId, text, "messenger");
       break;
   }
 }
