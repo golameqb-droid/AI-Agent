@@ -63,6 +63,7 @@ metaRouter.get("/oauth/pages", requireAuth, requireVendor, (req: AuthedRequest, 
     id: p.id,
     name: p.name,
     hasInstagram: Boolean(p.instagramAccountId),
+    instagramUsername: p.instagramUsername ?? null,
     hasWhatsApp: Boolean(p.whatsappPhoneNumberId),
     whatsappDisplayNumber: p.whatsappDisplayNumber ?? null,
   }));

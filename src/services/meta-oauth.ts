@@ -48,6 +48,7 @@ export interface MetaPageOption {
   /** User token from OAuth (has WhatsApp scopes); used for WA send/receive setup. */
   userAccessToken?: string;
   instagramAccountId?: string;
+  instagramUsername?: string;
   whatsappBusinessAccountId?: string;
   whatsappPhoneNumberId?: string;
   whatsappDisplayNumber?: string;
@@ -136,6 +137,65 @@ async function fetchWhatsAppForPage(
   return {};
 }
 
+type InstagramLookup = { id?: string; username?: string };
+
+async function fetchInstagramForPage(
+  pageId: string,
+  pageToken: string,
+  userToken: string,
+  inline?: { id?: string; username?: string }
+): Promise<InstagramLookup> {
+  if (inline?.id) return { id: inline.id, username: inline.username };
+
+  const pageFields = [
+    "instagram_business_account{id,username}",
+    "connected_instagram_account{id,username}",
+  ];
+  for (const field of pageFields) {
+    try {
+      const page = await graphGet(`${pageId}?fields=${field}`, pageToken);
+      const key = field.split("{")[0] as "instagram_business_account" | "connected_instagram_account";
+      const ig = page[key] as { id?: string; username?: string } | undefined;
+      if (ig?.id) return { id: ig.id, username: ig.username };
+    } catch (err: any) {
+      logger.warn(`Instagram field lookup failed for page ${pageId}: ${err?.message ?? err}`);
+    }
+  }
+
+  try {
+    const accounts = await graphGet(`${pageId}/instagram_accounts?fields=id,username`, pageToken);
+    const ig = (accounts.data ?? [])[0] as { id?: string; username?: string } | undefined;
+    if (ig?.id) return { id: ig.id, username: ig.username };
+  } catch (err: any) {
+    logger.warn(`Instagram accounts edge failed for page ${pageId}: ${err?.message ?? err}`);
+  }
+
+  for (const token of [userToken, pageToken]) {
+    try {
+      const biz = await graphGet("me/businesses?fields=id,name", token);
+      for (const b of biz.data ?? []) {
+        try {
+          const igList = await graphGet(
+            `${b.id}/instagram_business_accounts?fields=id,username`,
+            token
+          );
+          const ig = (igList.data ?? [])[0] as { id?: string; username?: string } | undefined;
+          if (ig?.id) {
+            logger.info(`Instagram ${ig.id} found via business ${b.id} for page ${pageId}`);
+            return { id: ig.id, username: ig.username };
+          }
+        } catch {
+          /* try next business */
+        }
+      }
+    } catch (err: any) {
+      logger.warn(`Instagram business lookup failed: ${err?.message ?? err}`);
+    }
+  }
+
+  return {};
+}
+
 async function exchangeLongLivedUserToken(shortToken: string): Promise<string> {
   const { appId, appSecret } = getPlatformMetaConfig();
   const url =
@@ -158,24 +218,32 @@ export async function exchangeCodeForPages(code: string): Promise<MetaPageOption
     throw new Error(tokenData.error?.message ?? "Failed to exchange OAuth code");
   }
   const userToken = await exchangeLongLivedUserToken(tokenData.access_token as string);
-  const pagesData = await graphGet("me/accounts?fields=id,name,access_token", userToken);
-  const pages = (pagesData.data ?? []) as { id: string; name: string; access_token: string }[];
+  const pagesData = await graphGet(
+    "me/accounts?fields=id,name,access_token,instagram_business_account{id,username}",
+    userToken
+  );
+  const pages = (pagesData.data ?? []) as {
+    id: string;
+    name: string;
+    access_token: string;
+    instagram_business_account?: { id?: string; username?: string };
+  }[];
   const out: MetaPageOption[] = [];
   for (const p of pages) {
-    let instagramAccountId: string | undefined;
-    try {
-      const ig = await graphGet(`${p.id}?fields=instagram_business_account`, p.access_token);
-      instagramAccountId = ig.instagram_business_account?.id;
-    } catch (err: any) {
-      logger.warn(`Instagram lookup failed for page ${p.id}: ${err?.message ?? err}`);
-    }
+    const ig = await fetchInstagramForPage(
+      p.id,
+      p.access_token,
+      userToken,
+      p.instagram_business_account
+    );
     const wa = await fetchWhatsAppForPage(p.id, p.access_token, userToken);
     out.push({
       id: p.id,
       name: p.name,
       accessToken: p.access_token,
       userAccessToken: userToken,
-      instagramAccountId,
+      instagramAccountId: ig.id,
+      instagramUsername: ig.username,
       whatsappBusinessAccountId: wa.wabaId,
       whatsappPhoneNumberId: wa.phoneNumberId,
       whatsappDisplayNumber: wa.displayNumber,

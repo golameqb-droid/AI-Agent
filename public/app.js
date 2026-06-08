@@ -553,14 +553,14 @@
           <div class="page-pick-item"><div><strong>${esc(p.name)}</strong>
           <div class="muted">${[
             "💬 Messenger",
-            p.hasInstagram ? "📸 Instagram" : "",
+            p.hasInstagram ? "📸 Instagram" + (p.instagramUsername ? " @" + esc(p.instagramUsername) : "") : "",
             p.hasWhatsApp ? "📱 WhatsApp " + esc(p.whatsappDisplayNumber || "") : "",
-          ].filter(Boolean).join(" · ")}${!p.hasInstagram && !p.hasWhatsApp ? " (no IG/WA linked on this Page)" : ""}</div></div>
+          ].filter(Boolean).join(" · ")}${!p.hasInstagram ? " · IG not linked to this Page" : ""}${!p.hasWhatsApp ? " · WA not linked" : ""}</div></div>
           <button class="btn btn-primary btn-sm" data-page="${esc(p.id)}">Connect</button></div>`).join("")}</div></div>` : "";
       v.innerHTML = `<div class="panel"><h3>Connect your channels</h3>
       <div class="oauth-panel">
         <h4 style="margin:0 0 8px">⚡ Quick connect with Meta</h4>
-        <p class="section-hint">One-click OAuth for Facebook Page, Instagram DM, and WhatsApp (when linked in Meta Business).</p>
+        <p class="section-hint">One-click OAuth for Facebook Page, Instagram DM, and WhatsApp. Instagram must be a <b>Professional account</b> linked to your Facebook Page (not only in Business Manager).</p>
         <button class="btn btn-primary" id="metaOAuthBtn" ${metaPages.configured ? "" : "disabled"}>Connect with Facebook</button>
         ${!metaPages.configured ? `<p class="muted" style="margin-top:8px;font-size:12px">Ask admin to configure Meta App ID & Secret first.</p>` : ""}
       </div>
