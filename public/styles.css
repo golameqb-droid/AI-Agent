@@ -201,12 +201,14 @@ a:hover { color: #66eeff; }
   max-width: 100%;
 }
 .brand-logo-login {
-  height: 56px;
-  margin: 0 auto var(--space-2);
+  height: 96px;
+  margin: 0 auto var(--space-4);
 }
 .brand-logo-sidebar {
-  height: 32px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
+  object-fit: contain;
 }
 .sr-only {
   position: absolute;
@@ -1139,7 +1141,7 @@ textarea.inp { min-height: 110px; resize: vertical; line-height: 1.55; }
   color: var(--text);
   text-decoration: none;
 }
-.logo-link .brand-logo-img { height: 36px; }
+.logo-link .brand-logo-img { height: 52px; }
 .logo-link strong { font-size: 16px; font-weight: 700; }
 
 .hero-eyebrow {

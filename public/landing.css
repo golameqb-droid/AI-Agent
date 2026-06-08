@@ -94,9 +94,16 @@ html { scroll-behavior: smooth; }
   letter-spacing: -0.02em;
 }
 .lp-logo-img {
-  height: 40px;
+  height: 56px;
   width: auto;
   display: block;
+}
+.lp-footer-brand .lp-logo-img {
+  height: 52px;
+}
+@media (max-width: 768px) {
+  .lp-logo-img { height: 48px; }
+  .lp-footer-brand .lp-logo-img { height: 44px; }
 }
 .lp-nav-links {
   display: flex;
