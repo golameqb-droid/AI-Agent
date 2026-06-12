@@ -69,6 +69,8 @@ export function createOrder(
   vendorId: number,
   data: {
     conversation_id?: number | null;
+    customer_id?: number | null;
+    deal_id?: number | null;
     customer_name?: string;
     customer_phone?: string;
     customer_address?: string;
@@ -84,13 +86,15 @@ export function createOrder(
   const total = calcTotal(items, data.total);
   const info = db
     .prepare(
-      `INSERT INTO orders (vendor_id, conversation_id, order_number, customer_name, customer_phone,
+      `INSERT INTO orders (vendor_id, conversation_id, customer_id, deal_id, order_number, customer_name, customer_phone,
         customer_address, items_json, total, notes, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       vendorId,
       data.conversation_id ?? null,
+      data.customer_id ?? null,
+      data.deal_id ?? null,
       nextOrderNumber(vendorId),
       data.customer_name?.trim() || null,
       data.customer_phone?.trim() || null,
@@ -107,13 +111,17 @@ export function createOrderFromAi(
   vendorId: number,
   conversationId: number,
   payload: OrderPayload,
-  customerName: string | null
+  customerName: string | null,
+  customerId?: number | null,
+  dealId?: number | null
 ): Order | null {
   if (!payload.items?.length) return null;
   const items = payload.items.filter((i) => i.name?.trim());
   if (!items.length) return null;
   return createOrder(vendorId, {
     conversation_id: conversationId,
+    customer_id: customerId ?? null,
+    deal_id: dealId ?? null,
     customer_name: payload.customer_name || customerName || undefined,
     customer_phone: payload.phone,
     customer_address: payload.address,

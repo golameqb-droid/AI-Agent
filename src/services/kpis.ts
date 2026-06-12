@@ -8,6 +8,18 @@ import { getVendorConfig } from "./vendor.js";
 import { channelConfigured } from "./channels.js";
 import { getPlatformAiConfig } from "./platform.js";
 import { getTokenUsage, getPlatformTokenUsage, getDailyAiUsage } from "./ai-usage.js";
+import {
+  countCustomers,
+  countNewCustomers7d,
+  countCustomersWithOrders,
+} from "./customers.js";
+import { getPipelineSummary, countDealsConverted } from "./deals.js";
+import { countFollowUpsSent } from "./follow-up.js";
+import {
+  countAbandonedCarts,
+  countRecoveredCarts,
+  recoveredRevenueEstimate,
+} from "./cart-intents.js";
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
@@ -145,6 +157,21 @@ export function getVendorKpis(vendorId: number) {
       deliveredOrders: orders.delivered ?? 0,
       productsActive: one(
         "SELECT COUNT(*) c FROM products WHERE vendor_id = ? AND active = 1",
+        vendorId
+      ),
+    },
+    crm: {
+      totalCustomers: countCustomers(vendorId),
+      newCustomers7d: countNewCustomers7d(vendorId),
+      customersWithOrders: countCustomersWithOrders(vendorId),
+      pipeline: getPipelineSummary(vendorId),
+      dealsWon: countDealsConverted(vendorId),
+      followUpsSent30d: countFollowUpsSent(vendorId, 30),
+      abandonedCarts: countAbandonedCarts(vendorId),
+      recoveredCarts: countRecoveredCarts(vendorId),
+      recoveredRevenue: recoveredRevenueEstimate(vendorId),
+      followUpPending: one(
+        "SELECT COUNT(*) c FROM follow_up_queue WHERE vendor_id = ? AND status = 'pending'",
         vendorId
       ),
     },

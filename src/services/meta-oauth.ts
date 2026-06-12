@@ -34,6 +34,7 @@ export function oauthScopesForVendor(vendorId: number): string {
   const scopes = new Set<string>([...MESSENGER_SCOPES, ...CONNECT_DISCOVERY_SCOPES]);
   if (planAllowsChannel(plan, "instagram")) {
     scopes.add("instagram_manage_messages");
+    scopes.add("instagram_manage_comments");
   }
   if (planAllowsChannel(plan, "whatsapp")) {
     scopes.add("whatsapp_business_messaging");
@@ -304,7 +305,10 @@ export async function applySelectedPage(vendorId: number, pageId: string): Promi
     FB_PAGE_ACCESS_TOKEN: page.accessToken,
     FB_GRAPH_VERSION: GRAPH,
   };
-  if (page.instagramAccountId) updates.IG_ACCOUNT_ID = page.instagramAccountId;
+  if (page.instagramAccountId) {
+    updates.IG_ACCOUNT_ID = page.instagramAccountId;
+    if (page.instagramUsername) updates.IG_USERNAME = page.instagramUsername;
+  }
   if (page.whatsappPhoneNumberId) {
     const waToken = page.userAccessToken || page.accessToken;
     updates.WA_PHONE_NUMBER_ID = page.whatsappPhoneNumberId;

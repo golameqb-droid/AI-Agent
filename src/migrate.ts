@@ -67,6 +67,132 @@ CREATE TABLE IF NOT EXISTS vendor_knowledge (
     );
     logger.info("Added messages.fb_mid for Messenger sync deduplication");
   }
+  runCrmMigrations(db);
+}
+
+/** CRM, pipeline, follow-up, abandoned cart (phases 1–4). */
+function runCrmMigrations(db: Database.Database): void {
+  db.exec(`
+CREATE TABLE IF NOT EXISTS customers (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id       INTEGER NOT NULL,
+  primary_channel TEXT NOT NULL,
+  primary_psid    TEXT NOT NULL,
+  name            TEXT,
+  phone           TEXT,
+  email           TEXT,
+  tags_json       TEXT,
+  conversation_id INTEGER,
+  notes           TEXT,
+  first_seen_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(vendor_id, primary_channel, primary_psid),
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+CREATE INDEX IF NOT EXISTS idx_customers_vendor ON customers(vendor_id);
+
+CREATE TABLE IF NOT EXISTS deals (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id        INTEGER NOT NULL,
+  customer_id      INTEGER,
+  conversation_id  INTEGER,
+  stage            TEXT NOT NULL DEFAULT 'new',
+  title            TEXT,
+  value_estimate   TEXT,
+  product_ids_json TEXT,
+  items_json       TEXT,
+  lost_reason      TEXT,
+  source           TEXT NOT NULL DEFAULT 'ai',
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  closed_at        TEXT,
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+CREATE INDEX IF NOT EXISTS idx_deals_vendor_stage ON deals(vendor_id, stage);
+
+CREATE TABLE IF NOT EXISTS follow_up_rules (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id        INTEGER NOT NULL,
+  trigger          TEXT NOT NULL,
+  delay_hours      INTEGER NOT NULL DEFAULT 24,
+  message_template TEXT NOT NULL,
+  enabled          INTEGER NOT NULL DEFAULT 1,
+  max_attempts     INTEGER NOT NULL DEFAULT 2,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+
+CREATE TABLE IF NOT EXISTS follow_up_queue (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id       INTEGER NOT NULL,
+  conversation_id INTEGER NOT NULL,
+  customer_id     INTEGER,
+  deal_id         INTEGER,
+  cart_intent_id  INTEGER,
+  rule_id         INTEGER,
+  scheduled_at    TEXT NOT NULL,
+  message_text    TEXT NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'pending',
+  attempt         INTEGER NOT NULL DEFAULT 0,
+  sent_at         TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+CREATE INDEX IF NOT EXISTS idx_follow_up_due ON follow_up_queue(vendor_id, status, scheduled_at);
+
+CREATE TABLE IF NOT EXISTS cart_intents (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id          INTEGER NOT NULL,
+  conversation_id    INTEGER NOT NULL,
+  customer_id        INTEGER,
+  deal_id            INTEGER,
+  items_json         TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'active',
+  last_activity_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  abandoned_at       TEXT,
+  converted_order_id INTEGER,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+CREATE INDEX IF NOT EXISTS idx_cart_vendor_status ON cart_intents(vendor_id, status);
+`);
+
+  if (!hasColumn(db, "conversations", "customer_id")) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN customer_id INTEGER`);
+    logger.info("CRM: added conversations.customer_id");
+  }
+  if (!hasColumn(db, "orders", "customer_id")) {
+    db.exec(`ALTER TABLE orders ADD COLUMN customer_id INTEGER`);
+    logger.info("CRM: added orders.customer_id");
+  }
+  if (!hasColumn(db, "orders", "deal_id")) {
+    db.exec(`ALTER TABLE orders ADD COLUMN deal_id INTEGER`);
+    logger.info("CRM: added orders.deal_id");
+  }
+
+  const convos = db
+    .prepare("SELECT id, vendor_id, channel, psid, customer_name FROM conversations WHERE customer_id IS NULL")
+    .all() as { id: number; vendor_id: number; channel: string; psid: string; customer_name: string | null }[];
+  for (const c of convos) {
+    const exists = db
+      .prepare("SELECT id FROM customers WHERE vendor_id = ? AND primary_channel = ? AND primary_psid = ?")
+      .get(c.vendor_id, c.channel, c.psid) as { id: number } | undefined;
+    let customerId = exists?.id;
+    if (!customerId) {
+      const info = db
+        .prepare(
+          `INSERT INTO customers (vendor_id, primary_channel, primary_psid, name, conversation_id, first_seen_at, last_seen_at)
+           VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        )
+        .run(c.vendor_id, c.channel, c.psid, c.customer_name, c.id);
+      customerId = Number(info.lastInsertRowid);
+    }
+    db.prepare("UPDATE conversations SET customer_id = ? WHERE id = ?").run(customerId, c.id);
+  }
+  if (convos.length) logger.info(`CRM: backfilled ${convos.length} customer records`);
 }
 
 /** Fix messages FK still pointing at conversations_old after interrupted migration. */
@@ -225,6 +351,7 @@ CREATE INDEX IF NOT EXISTS idx_post_templates_vendor ON post_templates(vendor_id
 
   migrateConversationsChannelUnique(db);
   migrateAiTokenTracking(db);
+  migrateLearningTables(db);
 
   // Backfill trials for existing vendors
   const vendors = db.prepare("SELECT id FROM vendors").all() as { id: number }[];
@@ -239,6 +366,32 @@ CREATE INDEX IF NOT EXISTS idx_post_templates_vendor ON post_templates(vendor_id
       ).run(v.id, end.toISOString());
     }
   }
+}
+
+function migrateLearningTables(db: Database.Database): void {
+  db.exec(`
+CREATE TABLE IF NOT EXISTS customer_memory (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id  INTEGER NOT NULL,
+  channel    TEXT NOT NULL,
+  psid       TEXT NOT NULL,
+  note       TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(vendor_id, channel, psid, note),
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+CREATE TABLE IF NOT EXISTS vendor_learnings (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  vendor_id  INTEGER NOT NULL,
+  note       TEXT NOT NULL,
+  hits       INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+);
+CREATE INDEX IF NOT EXISTS idx_customer_memory_lookup ON customer_memory(vendor_id, channel, psid);
+CREATE INDEX IF NOT EXISTS idx_vendor_learnings_vendor ON vendor_learnings(vendor_id);
+`);
 }
 
 function migrateLegacyData(db: Database.Database): void {

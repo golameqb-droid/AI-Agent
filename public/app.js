@@ -65,6 +65,11 @@
   const VENDOR_NAV = [
     { id: "dashboard", label: "Dashboard" },
     { id: "analytics", label: "Analytics" },
+    { id: "customers", label: "Customers" },
+    { id: "pipeline", label: "Pipeline" },
+    { id: "followups", label: "Follow-ups" },
+    { id: "carts", label: "Abandoned carts" },
+    { id: "learnings", label: "Learnings" },
     { id: "channels", label: "Channels" },
     { id: "knowledge", label: "Knowledge" },
     { id: "products", label: "Products" },
@@ -74,12 +79,98 @@
     { id: "posts", label: "Posts" },
     { id: "billing", label: "Plan & Billing" },
   ];
+  const PIPELINE_STAGES = ["new", "interested", "quoted", "negotiating", "won", "lost"];
+  const STAGE_LABELS = {
+    new: "New", interested: "Interested", quoted: "Quoted",
+    negotiating: "Negotiating", won: "Won", lost: "Lost",
+  };
   const CHANNEL_TAGS = { messenger: "MSG", whatsapp: "WA", instagram: "IG" };
   const CHANNEL_META = {
     messenger: { icon: "💬", label: "Messenger & Facebook", hint: "Page ID + Page Access Token from Meta Developer" },
     whatsapp: { icon: "📱", label: "WhatsApp Business", hint: "Phone Number ID + token from Meta WhatsApp API" },
     instagram: { icon: "📸", label: "Instagram DM", hint: "Instagram Business Account ID linked to your Facebook Page" },
   };
+
+  async function loadWhatsAppSetup(root) {
+    const panel = root.querySelector("#waSetupPanel");
+    if (!panel) return;
+    try {
+      const s = await api("/whatsapp/status");
+      panel.style.display = "block";
+      const badge = (label, val, ok) =>
+        `<span class="status-chip ${ok ? "ok" : "warn"}" style="margin-right:6px">${label}: ${esc(val || "—")}</span>`;
+      const needsVerify = s.codeVerificationStatus !== "VERIFIED";
+      const needsRegister = s.codeVerificationStatus === "VERIFIED" && s.status !== "CONNECTED";
+      const otpBlocked = Boolean(s.otpBlocked);
+      panel.innerHTML = `<h4 style="margin:0 0 8px">WhatsApp phone status</h4>
+        <p class="muted" style="margin:0 0 8px">${esc(s.displayPhoneNumber || "")} · ${esc(s.verifiedName || "")}</p>
+        <div class="status-row" style="margin-bottom:10px">
+          ${badge("Verify", s.codeVerificationStatus, s.codeVerificationStatus === "VERIFIED")}
+          ${badge("Status", s.status, s.status === "CONNECTED")}
+          ${s.nameStatus ? badge("Name", s.nameStatus, s.nameStatus === "APPROVED") : ""}
+        </div>
+        <p class="section-hint" style="margin:0 0 10px">${esc(s.nextStep)}</p>
+        ${otpBlocked ? `<div class="oauth-panel" style="border-color:#f59e0b;margin-bottom:10px">
+          <p style="margin:0 0 8px;color:#fbbf24"><b>OTP blocked by Meta</b> — too many code requests on this number.</p>
+          <p class="muted" style="margin:0;font-size:12px;line-height:1.5">
+            <b>Do not click Send code again</b> — each try extends the block (~72 hours).<br>
+            <b>Fastest fix:</b> add a <b>new SIM number</b> in
+            <a href="https://developers.facebook.com/apps/1176497627633542/whatsapp-business/wa-dev-console/" target="_blank" rel="noopener">Meta → WhatsApp → API Setup</a>,
+            then reconnect Facebook in Channels.<br>
+            <b>Or wait 72h</b> with zero attempts, then try <b>voice call</b> once.<br>
+            Ensure <b>${esc(s.displayPhoneNumber || "this number")}</b> is <b>not on WhatsApp app</b> (delete account from phone first).
+          </p></div>` : ""}
+        ${s.ready ? `<p class="muted" style="color:#34d399">✓ Ready — send a test message to your business number.</p>
+          <button class="btn btn-sm" id="waResubBtn" type="button">Resubscribe webhooks</button>` : ""}
+        ${needsVerify && !otpBlocked ? `<div class="wa-verify-row" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:8px">
+          <button class="btn btn-sm" id="waSmsBtn" type="button">Send SMS code</button>
+          <button class="btn btn-sm" id="waVoiceBtn" type="button">Send voice code</button>
+          <input class="inp" id="waCodeInp" placeholder="6-digit code" style="max-width:140px" />
+          <button class="btn btn-primary btn-sm" id="waVerifyBtn" type="button">Verify code</button>
+        </div>
+        <p class="muted" style="font-size:12px">Code goes to <b>${esc(s.displayPhoneNumber || "business phone")}</b>. Number must not be active on WhatsApp mobile app.</p>` : ""}
+        ${needsVerify && otpBlocked ? `<p class="muted" style="font-size:12px">Already have a code from an earlier attempt? Enter it below:</p>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
+          <input class="inp" id="waCodeInp" placeholder="6-digit code" style="max-width:140px" />
+          <button class="btn btn-primary btn-sm" id="waVerifyBtn" type="button">Verify code</button>
+        </div>` : ""}
+        ${needsRegister ? `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+          <input class="inp" id="waPinInp" placeholder="6-digit PIN (new or existing 2FA)" style="max-width:200px" type="password" maxlength="6" />
+          <button class="btn btn-primary btn-sm" id="waRegisterBtn" type="button">Register for Cloud API</button>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:6px">PIN sets two-step verification if you have not enabled it yet.</p>` : ""}`;
+      panel.querySelector("#waSmsBtn")?.addEventListener("click", async () => {
+        try { toast((await api("/whatsapp/request-code", { method: "POST", body: JSON.stringify({ method: "SMS" }) })).message, "ok"); }
+        catch (e) { toast(e.message, "err"); }
+      });
+      panel.querySelector("#waVoiceBtn")?.addEventListener("click", async () => {
+        try { toast((await api("/whatsapp/request-code", { method: "POST", body: JSON.stringify({ method: "VOICE" }) })).message, "ok"); }
+        catch (e) { toast(e.message, "err"); }
+      });
+      panel.querySelector("#waVerifyBtn")?.addEventListener("click", async () => {
+        try {
+          const code = panel.querySelector("#waCodeInp")?.value || "";
+          toast((await api("/whatsapp/verify-code", { method: "POST", body: JSON.stringify({ code }) })).message, "ok");
+          loadWhatsAppSetup(root);
+        } catch (e) { toast(e.message, "err"); }
+      });
+      panel.querySelector("#waRegisterBtn")?.addEventListener("click", async () => {
+        try {
+          const pin = panel.querySelector("#waPinInp")?.value || "";
+          toast((await api("/whatsapp/register", { method: "POST", body: JSON.stringify({ pin }) })).message, "ok");
+          loadWhatsAppSetup(root);
+        } catch (e) { toast(e.message, "err"); }
+      });
+      panel.querySelector("#waResubBtn")?.addEventListener("click", async () => {
+        try { toast((await api("/whatsapp/resubscribe", { method: "POST", body: JSON.stringify({}) })).message, "ok"); }
+        catch (e) { toast(e.message, "err"); }
+      });
+    } catch (e) {
+      panel.style.display = "block";
+      panel.innerHTML = `<p class="muted">WhatsApp status: ${esc(e.message)}</p>`;
+    }
+  }
+
   const ADMIN_NAV = [
     { id: "admin-dashboard", label: "Platform" },
     { id: "admin-analytics", label: "Analytics" },
@@ -352,6 +443,8 @@
     v.innerHTML = "<div class='empty'>Loading…</div>";
     const routes = {
       dashboard: renderDashboard, analytics: renderAnalytics,
+      customers: renderCustomers, pipeline: renderPipeline,
+      followups: renderFollowups, carts: renderCarts, learnings: renderLearnings,
       channels: renderChannels, knowledge: renderKnowledge,
       products: renderProducts, inbox: renderInbox, orders: renderOrders,
       comments: renderComments, posts: renderPosts, billing: renderBilling,
@@ -457,6 +550,18 @@
         ${kpiCard(sales.confirmedOrders, "Confirmed", "")}
         ${kpiCard(sales.productsActive, "Products", "Active in catalog")}
       </div></div></div>
+      <div class="panel"><div class="kpi-section"><h3>👥 CRM & pipeline</h3>
+      <div class="kpi-grid">
+        ${kpiCard(fmtNum(k.crm?.totalCustomers || 0), "Customers", `${k.crm?.newCustomers7d || 0} new (7d)`)}
+        ${kpiCard(fmtNum(k.crm?.dealsWon || 0), "Deals won", `${k.crm?.pipeline?.interested || 0} interested`)}
+        ${kpiCard(k.crm?.followUpPending || 0, "Follow-ups queued", `${k.crm?.followUpsSent30d || 0} sent (30d)`)}
+        ${kpiCard(k.crm?.abandonedCarts || 0, "Abandoned carts", `${k.crm?.recoveredCarts || 0} recovered`)}
+      </div>
+      <p class="muted" style="margin-top:10px">
+        <a href="#" data-goto="customers" class="link-neon">Customers →</a> ·
+        <a href="#" data-goto="pipeline" class="link-neon">Pipeline →</a> ·
+        <a href="#" data-goto="carts" class="link-neon">Abandoned carts →</a>
+      </p></div></div>
       <div class="panel"><div class="kpi-section"><h3>🤖 AI & tokens · ${esc(ai.planName)}</h3>
       <div class="kpi-grid">
         ${kpiCard(fmtNum(ai.aiReplies), "AI replies", fmtDelta(tr.aiRepliesDeltaPct))}
@@ -578,6 +683,7 @@
       </div></details>
       <details class="config-section" ${ch.whatsapp?.allowed?"open":""}><summary>📱 WhatsApp Business</summary><div class="config-body">
       <p class="section-hint">${esc(CHANNEL_META.whatsapp.hint)}</p>
+      <div id="waSetupPanel" class="oauth-panel" style="margin-bottom:12px;display:none"></div>
       <label class="field">Phone Number ID</label><input class="inp vk" data-key="WA_PHONE_NUMBER_ID" value="${esc(vals.WA_PHONE_NUMBER_ID||"")}" ${ch.whatsapp?.allowed?"":"disabled"} />
       <label class="field">WhatsApp Access Token</label><input class="inp vk" data-key="WA_ACCESS_TOKEN" data-secret=1 type="password" value="${esc(vals.WA_ACCESS_TOKEN||"")}" ${ch.whatsapp?.allowed?"":"disabled"} />
       ${!ch.whatsapp?.allowed ? `<p class="muted">Upgrade to Pro for WhatsApp. <a href="#" data-goto="billing" class="link-neon">View plans</a></p>` : ""}
@@ -610,6 +716,7 @@
         } catch (e) { toast(e.message, "err"); }
       }));
       v.querySelector("[data-goto]")?.addEventListener("click", (e) => { e.preventDefault(); currentView = "billing"; showApp(); });
+      if (ch.whatsapp?.allowed && vals.WA_PHONE_NUMBER_ID) loadWhatsAppSetup(v);
       $("#saveChannels").addEventListener("click", async () => {
         const values = {};
         v.querySelectorAll(".vk").forEach((n) => {
@@ -875,6 +982,221 @@
         });
         actions.appendChild(cancel);
       }
+      box.appendChild(item);
+    });
+  }
+
+  async function renderCustomers(v) {
+    let customers = [];
+    const q = v.dataset?.custQ || "";
+    try {
+      customers = await api("/customers" + (q ? `?q=${encodeURIComponent(q)}` : ""));
+    } catch (e) {
+      v.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+      return;
+    }
+    v.innerHTML = `<div class="panel"><div class="row" style="align-items:center">
+      <h3 style="margin:0;flex:1">👥 Customers</h3>
+      <input class="inp" id="custSearch" placeholder="Search name, phone…" style="max-width:220px" value="${esc(q)}" />
+    </div><p class="section-hint">Every chat contact is tracked here with orders, deals, and memory.</p></div>
+    <div id="custList"></div><div id="custDetail" class="panel hidden"></div>`;
+    $("#custSearch").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { v.dataset.custQ = e.target.value; renderCustomers(v); }
+    });
+    const box = $("#custList");
+    if (!customers.length) {
+      box.innerHTML = `<div class="empty">No customers yet — they appear when someone messages you.</div>`;
+      return;
+    }
+    customers.forEach((c) => {
+      const item = el("div", "item");
+      const ch = CHANNEL_TAGS[c.primary_channel] || c.primary_channel;
+      item.innerHTML = `<div class="head"><span class="who">${esc(c.name || "Unknown")}</span>
+        <span class="pill">${esc(ch)}</span></div>
+        <div class="msg muted">${esc(c.phone || "")} · Last seen ${esc(c.last_seen_at)}</div>`;
+      item.style.cursor = "pointer";
+      item.addEventListener("click", async () => {
+        try {
+          const t = await api(`/customers/${c.id}`);
+          const det = $("#custDetail");
+          det.classList.remove("hidden");
+          const msgs = (t.messages || []).map((m) =>
+            `<div class="msg"><span class="pill ${m.direction}">${m.direction}</span> ${esc(m.text)}</div>`
+          ).join("");
+          const ords = (t.orders || []).map((o) =>
+            `<div class="msg">${esc(o.order_number)} · ${esc(o.status)} · ${esc(o.total || "")}</div>`
+          ).join("") || `<div class="muted">No orders</div>`;
+          const deals = (t.deals || []).map((d) =>
+            `<div class="msg">${esc(d.title || "Deal")} · ${esc(d.stage)} · ${esc(d.value_estimate || "")}</div>`
+          ).join("") || `<div class="muted">No deals</div>`;
+          const mem = (t.memories || []).map((m) => `<div class="msg">• ${esc(m.note)}</div>`).join("")
+            || `<div class="muted">No memory yet</div>`;
+          det.innerHTML = `<h3>${esc(t.customer.name || "Customer")}</h3>
+            <p class="muted">${esc(t.customer.phone || "")} · ${esc(t.customer.primary_channel)}</p>
+            <h4>Recent messages</h4>${msgs}
+            <h4>Orders</h4>${ords}
+            <h4>Deals</h4>${deals}
+            <h4>AI memory</h4>${mem}`;
+        } catch (e) { toast(e.message, "err"); }
+      });
+      box.appendChild(item);
+    });
+  }
+
+  async function renderPipeline(v) {
+    let deals = [];
+    let summary = {};
+    try {
+      [deals, summary] = await Promise.all([api("/deals"), api("/pipeline/summary")]);
+    } catch (e) {
+      v.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+      return;
+    }
+    const cols = PIPELINE_STAGES.filter((s) => s !== "won" && s !== "lost").map((s) => {
+      const n = summary[s] || 0;
+      return kpiCard(n, STAGE_LABELS[s] || s, "");
+    }).join("");
+    v.innerHTML = `<div class="panel"><h3>📈 Sales pipeline</h3>
+      <p class="section-hint">AI tracks buying interest via [[DEAL:...]] markers. Drag deals by changing stage.</p>
+      <div class="kpi-grid" style="margin-top:12px">${cols}
+        ${kpiCard(summary.won || 0, "Won", "")}${kpiCard(summary.lost || 0, "Lost", "")}
+      </div></div><div id="dealList"></div>`;
+    const box = $("#dealList");
+    if (!deals.length) {
+      box.innerHTML = `<div class="empty">No deals yet — AI creates them when customers show buying interest.</div>`;
+      return;
+    }
+    deals.forEach((d) => {
+      const item = el("div", "item");
+      const opts = PIPELINE_STAGES.map((s) =>
+        `<option value="${s}" ${d.stage === s ? "selected" : ""}>${STAGE_LABELS[s]}</option>`
+      ).join("");
+      let items = "";
+      try {
+        items = (JSON.parse(d.items_json || "[]") || []).map((i) => i.name).join(", ");
+      } catch { /* ignore */ }
+      item.innerHTML = `<div class="head"><span class="who">${esc(d.title || "Deal #" + d.id)}</span>
+        <span class="pill ${d.stage}">${esc(d.stage)}</span></div>
+        <div class="msg">${esc(d.value_estimate || "")} ${items ? "· " + esc(items) : ""}</div>
+        <div class="msg muted">${esc(d.source)} · ${esc(d.updated_at)}</div>
+        <div class="actions"><select class="inp dealStage" style="max-width:160px">${opts}</select></div>`;
+      item.querySelector(".dealStage").addEventListener("change", async (e) => {
+        try {
+          await api(`/deals/${d.id}`, { method: "PATCH", body: JSON.stringify({ stage: e.target.value }) });
+          toast("Stage updated ✓", "ok");
+          renderPipeline(v);
+        } catch (err) { toast(err.message, "err"); }
+      });
+      box.appendChild(item);
+    });
+  }
+
+  async function renderFollowups(v) {
+    let rules = [];
+    let queue = [];
+    try {
+      [rules, queue] = await Promise.all([
+        api("/follow-up/rules"),
+        api("/follow-up/queue?status=pending"),
+      ]);
+    } catch (e) {
+      v.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+      return;
+    }
+    const ruleHtml = rules.map((r) => `
+      <div class="item" data-rule="${r.id}">
+        <div class="head"><span class="who">${esc(r.trigger)}</span>
+          <span class="pill ${r.enabled ? "ok" : "warn"}">${r.enabled ? "On" : "Off"}</span></div>
+        <div class="msg muted">After ${r.delay_hours}h · max ${r.max_attempts} attempts</div>
+        <textarea class="inp ruleMsg" style="margin-top:8px;min-height:60px">${esc(r.message_template)}</textarea>
+        <div class="actions row" style="gap:8px;margin-top:8px">
+          <label class="muted"><input type="checkbox" class="ruleOn" ${r.enabled ? "checked" : ""}/> Enabled</label>
+          <input class="inp ruleDelay" type="number" min="1" value="${r.delay_hours}" style="max-width:80px" title="Hours"/>
+          <button class="btn btn-primary btn-sm saveRule">Save</button>
+        </div>
+      </div>`).join("");
+    const queueHtml = queue.length
+      ? queue.map((q) => `<div class="item"><div class="head"><span class="who">Conv #${q.conversation_id}</span>
+          <span class="pill">${esc(q.scheduled_at)}</span></div>
+          <div class="msg">${esc(q.message_text)}</div></div>`).join("")
+      : `<div class="empty">No follow-ups queued.</div>`;
+    v.innerHTML = `<div class="panel"><h3>⏰ Follow-up automation</h3>
+      <p class="section-hint">Auto-nudge customers who go quiet, have stale deals, pending orders, or abandoned carts.</p>
+      <div id="ruleList">${ruleHtml}</div></div>
+      <div class="panel"><h3>Queued messages (${queue.length})</h3><div id="queueList">${queueHtml}</div></div>`;
+    v.querySelectorAll("[data-rule]").forEach((row) => {
+      row.querySelector(".saveRule").addEventListener("click", async () => {
+        const id = row.dataset.rule;
+        try {
+          await api(`/follow-up/rules/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              message_template: row.querySelector(".ruleMsg").value,
+              delay_hours: Number(row.querySelector(".ruleDelay").value),
+              enabled: row.querySelector(".ruleOn").checked ? 1 : 0,
+            }),
+          });
+          toast("Rule saved ✓", "ok");
+        } catch (e) { toast(e.message, "err"); }
+      });
+    });
+  }
+
+  async function renderCarts(v) {
+    let carts = [];
+    try { carts = await api("/cart-intents"); } catch (e) {
+      v.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return;
+    }
+    const filter = v.dataset?.cartFilter || "";
+    const statuses = ["", "active", "abandoned", "converted"];
+    const opts = statuses.map((s) =>
+      `<option value="${s}" ${filter === s ? "selected" : ""}>${s || "All"}</option>`
+    ).join("");
+    v.innerHTML = `<div class="panel"><div class="row" style="align-items:center">
+      <h3 style="margin:0;flex:1">🛒 Abandoned carts</h3>
+      <select class="inp" id="cartFilter" style="max-width:140px">${opts}</select>
+    </div><p class="section-hint">AI tracks partial orders. Abandoned carts get recovery messages automatically.</p></div>
+    <div id="cartList"></div>`;
+    $("#cartFilter").addEventListener("change", (e) => {
+      v.dataset.cartFilter = e.target.value;
+      renderCarts(v);
+    });
+    const filtered = filter ? carts.filter((c) => c.status === filter) : carts;
+    const box = $("#cartList");
+    if (!filtered.length) {
+      box.innerHTML = `<div class="empty">No cart intents yet.</div>`;
+      return;
+    }
+    filtered.forEach((c) => {
+      let items = [];
+      try { items = JSON.parse(c.items_json || "[]"); } catch { /* ignore */ }
+      const item = el("div", "item");
+      item.innerHTML = `<div class="head"><span class="who">Conv #${c.conversation_id}</span>
+        <span class="pill ${c.status}">${esc(c.status)}</span></div>
+        <div class="msg">${esc(items.map((i) => `${i.name} ×${i.qty || 1}`).join(", "))}</div>
+        <div class="msg muted">Last activity ${esc(c.last_activity_at)}${c.abandoned_at ? " · abandoned " + esc(c.abandoned_at) : ""}</div>`;
+      box.appendChild(item);
+    });
+  }
+
+  async function renderLearnings(v) {
+    let items = [];
+    try { items = await api("/learnings"); } catch (e) {
+      v.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return;
+    }
+    v.innerHTML = `<div class="panel"><h3>🧠 AI learnings</h3>
+      <p class="section-hint">Patterns the AI picked up from customer conversations — used to personalize replies.</p></div>
+      <div id="learnList"></div>`;
+    const box = $("#learnList");
+    if (!items.length) {
+      box.innerHTML = `<div class="empty">No learnings yet — they build as customers chat.</div>`;
+      return;
+    }
+    items.forEach((l) => {
+      const item = el("div", "item");
+      item.innerHTML = `<div class="head"><span class="who">${esc(l.note)}</span>
+        <span class="pill">${l.hits} hits</span></div>
+        <div class="msg muted">Updated ${esc(l.updated_at)}</div>`;
       box.appendChild(item);
     });
   }

@@ -6,6 +6,13 @@ import { productImageUpload } from "../middleware/upload.js";
 import { draftPost, draftMessageReply, draftCommentReply } from "../services/agent.js";
 import { replyToComment, publishPost, publishPhoto } from "../services/facebook.js";
 import { sendText, channelConfigured } from "../services/channels.js";
+import {
+  getWhatsAppPhoneStatus,
+  requestWhatsAppCode,
+  verifyWhatsAppCode,
+  registerWhatsAppPhone,
+  resubscribeWhatsAppWebhooks,
+} from "../services/whatsapp-setup.js";
 import { getMonthlyUsage, canUseAi } from "../services/usage.js";
 import { getSubscription } from "../services/subscription.js";
 import { getPlan, planAllowsChannel } from "../services/plans.js";
@@ -39,6 +46,23 @@ import {
   ordersToCsv,
   orderToPublic,
 } from "../services/orders.js";
+import {
+  listCustomers,
+  getCustomer,
+  getCustomerTimeline,
+  backfillCustomers,
+} from "../services/customers.js";
+import {
+  listDeals,
+  getDeal,
+  createDeal,
+  updateDealStage,
+  getPipelineSummary,
+  PIPELINE_STAGES,
+} from "../services/deals.js";
+import { listRules, updateRule, listQueue } from "../services/follow-up.js";
+import { listCartIntents } from "../services/cart-intents.js";
+import { listVendorLearnings } from "../services/learning.js";
 import type { Conversation, PostItem, HandoffStatus, OrderStatus } from "../types.js";
 
 export const apiRouter = Router();
@@ -144,6 +168,63 @@ apiRouter.put("/settings", (req: AuthedRequest, res) => {
   }
   setVendorSettings(vid, updates);
   res.json({ ok: true });
+});
+
+// ----------------------- WhatsApp phone setup -------------------
+apiRouter.get("/whatsapp/status", async (req: AuthedRequest, res) => {
+  try {
+    const cfg = getVendorConfig(vendorId(req));
+    const status = await getWhatsAppPhoneStatus(cfg);
+    res.json(status);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message ?? "WhatsApp status failed" });
+  }
+});
+
+apiRouter.post("/whatsapp/request-code", async (req: AuthedRequest, res) => {
+  try {
+    const cfg = getVendorConfig(vendorId(req));
+    const method = req.body?.method === "VOICE" ? "VOICE" : "SMS";
+    const result = await requestWhatsAppCode(cfg, method);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message ?? "Request code failed" });
+  }
+});
+
+apiRouter.post("/whatsapp/verify-code", async (req: AuthedRequest, res) => {
+  try {
+    const cfg = getVendorConfig(vendorId(req));
+    const result = await verifyWhatsAppCode(cfg, String(req.body?.code ?? ""));
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message ?? "Verify code failed" });
+  }
+});
+
+apiRouter.post("/whatsapp/register", async (req: AuthedRequest, res) => {
+  try {
+    const cfg = getVendorConfig(vendorId(req));
+    const result = await registerWhatsAppPhone(cfg, String(req.body?.pin ?? ""));
+    try {
+      await resubscribeWhatsAppWebhooks(cfg);
+    } catch (subErr: any) {
+      logger.warn(`WhatsApp resubscribe after register: ${subErr?.message ?? subErr}`);
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message ?? "Register failed" });
+  }
+});
+
+apiRouter.post("/whatsapp/resubscribe", async (req: AuthedRequest, res) => {
+  try {
+    const cfg = getVendorConfig(vendorId(req));
+    await resubscribeWhatsAppWebhooks(cfg);
+    res.json({ ok: true, message: "WhatsApp webhooks resubscribed." });
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message ?? "Resubscribe failed" });
+  }
 });
 
 // ----------------------- Vendor knowledge base ------------------
@@ -594,4 +675,85 @@ apiRouter.patch("/orders/:id", (req: AuthedRequest, res) => {
   const order = updateOrderStatus(vid, Number(req.params.id), status, notes);
   if (!order) return res.status(404).json({ error: "Order not found" });
   res.json(orderToPublic(order));
+});
+
+// ----------------------------- CRM -----------------------------
+apiRouter.get("/customers", (req: AuthedRequest, res) => {
+  const vid = vendorId(req);
+  backfillCustomers(vid);
+  const q = req.query.q?.toString();
+  res.json(listCustomers(vid, q));
+});
+
+apiRouter.get("/customers/:id", (req: AuthedRequest, res) => {
+  const vid = vendorId(req);
+  const timeline = getCustomerTimeline(vid, Number(req.params.id));
+  if (!timeline) return res.status(404).json({ error: "Customer not found" });
+  res.json(timeline);
+});
+
+apiRouter.get("/deals", (req: AuthedRequest, res) => {
+  const vid = vendorId(req);
+  const stage = req.query.stage?.toString();
+  res.json(listDeals(vid, stage || undefined));
+});
+
+apiRouter.get("/deals/:id", (req: AuthedRequest, res) => {
+  const deal = getDeal(vendorId(req), Number(req.params.id));
+  if (!deal) return res.status(404).json({ error: "Deal not found" });
+  res.json(deal);
+});
+
+apiRouter.post("/deals", (req: AuthedRequest, res) => {
+  const vid = vendorId(req);
+  const { customer_id, conversation_id, stage, title, value_estimate, product_ids, items } = req.body ?? {};
+  const deal = createDeal(vid, {
+    customer_id,
+    conversation_id,
+    stage,
+    title,
+    value_estimate,
+    product_ids,
+    items,
+    source: "manual",
+  });
+  res.json(deal);
+});
+
+apiRouter.patch("/deals/:id", (req: AuthedRequest, res) => {
+  const vid = vendorId(req);
+  const { stage, lost_reason } = req.body ?? {};
+  if (!PIPELINE_STAGES.includes(stage)) return res.status(400).json({ error: "Invalid stage" });
+  const deal = updateDealStage(vid, Number(req.params.id), stage, lost_reason);
+  if (!deal) return res.status(404).json({ error: "Deal not found" });
+  res.json(deal);
+});
+
+apiRouter.get("/pipeline/summary", (req: AuthedRequest, res) => {
+  res.json(getPipelineSummary(vendorId(req)));
+});
+
+apiRouter.get("/follow-up/rules", (req: AuthedRequest, res) => {
+  res.json(listRules(vendorId(req)));
+});
+
+apiRouter.patch("/follow-up/rules/:id", (req: AuthedRequest, res) => {
+  const vid = vendorId(req);
+  const { delay_hours, message_template, enabled, max_attempts } = req.body ?? {};
+  updateRule(vid, Number(req.params.id), { delay_hours, message_template, enabled, max_attempts });
+  res.json({ ok: true });
+});
+
+apiRouter.get("/follow-up/queue", (req: AuthedRequest, res) => {
+  const status = req.query.status?.toString() || "pending";
+  res.json(listQueue(vendorId(req), status));
+});
+
+apiRouter.get("/cart-intents", (req: AuthedRequest, res) => {
+  const status = req.query.status?.toString();
+  res.json(listCartIntents(vendorId(req), status as any));
+});
+
+apiRouter.get("/learnings", (req: AuthedRequest, res) => {
+  res.json(listVendorLearnings(vendorId(req)));
 });

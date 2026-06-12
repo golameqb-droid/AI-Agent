@@ -5,6 +5,8 @@ import { publishPost, publishPhoto } from "./services/facebook.js";
 import { syncAllVendorComments } from "./services/comment-sync.js";
 import { syncAllVendorMessages } from "./services/message-sync.js";
 import { getVendorConfig } from "./services/vendor.js";
+import { processFollowUpQueue, scanStaleConversations } from "./services/follow-up.js";
+import { scanAbandonedCarts } from "./services/cart-intents.js";
 import type { PostItem } from "./types.js";
 
 export function startScheduler() {
@@ -39,6 +41,21 @@ export function startScheduler() {
   cron.schedule("* * * * *", () => {
     void syncAllVendorComments();
     void syncAllVendorMessages();
+  });
+
+  cron.schedule("*/15 * * * *", async () => {
+    try {
+      await processFollowUpQueue();
+      const vendors = db.prepare("SELECT id FROM vendors WHERE status IN ('active','trial')").all() as {
+        id: number;
+      }[];
+      for (const v of vendors) {
+        scanStaleConversations(v.id);
+        scanAbandonedCarts(v.id);
+      }
+    } catch (err) {
+      logger.error("CRM scheduler tick failed", err);
+    }
   });
 
   logger.info("Post scheduler started (checks every minute).");

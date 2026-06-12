@@ -1,12 +1,23 @@
 import { db } from "../db.js";
 import { logger } from "../logger.js";
 import { draftMessageReply, draftCommentReply } from "./agent.js";
-import { replyToComment, getUserName } from "./facebook.js";
+import { replyToComment, deleteComment, getUserName } from "./facebook.js";
+import { isNegativeComment } from "./comment-moderation.js";
+import { isOwnSocialComment } from "./comment-filter.js";
+import {
+  learnFromCustomerMessage,
+  promoteVendorLearning,
+  saveCustomerMemories,
+} from "./learning.js";
 import { getVendorConfig, vendorAiConfigured } from "./vendor.js";
 import { getProduct, resolvePublicImageUrl } from "./products.js";
 import { detectHandoffRequest, isHandoffActive, setHandoffStatus } from "./handoff.js";
 import { parseAiReply } from "./reply-parser.js";
 import { createOrderFromAi } from "./orders.js";
+import { upsertCustomerFromConversation, updateCustomerFromOrder } from "./customers.js";
+import { upsertDealFromAi, markDealWon, getOpenDealForConversation } from "./deals.js";
+import { upsertCartFromAi, touchCartActivity, markCartConverted, detectBuyIntent } from "./cart-intents.js";
+import { cancelFollowUpsForConversation } from "./follow-up.js";
 import { sendText, sendChannelImage, type Channel, vendorCanUseChannel } from "./channels.js";
 import { canUseAi, recordMessageIn, recordMessageOut, recordAiReply } from "./usage.js";
 import { isSubscriptionActive } from "./subscription.js";
@@ -83,15 +94,52 @@ async function deliverAiReply(
   const handoff = parsed.requestHandoff || detectHandoffRequest(customerText);
   if (handoff) setHandoffStatus(convo.id, "human_requested");
 
+  const customerId = convo.customer_id ?? null;
+  const openDeal = getOpenDealForConversation(cfg.vendorId, convo.id);
+
+  if (parsed.deal) {
+    try {
+      upsertDealFromAi(cfg.vendorId, convo.id, customerId, parsed.deal);
+    } catch (err) {
+      logger.error(`[vendor ${cfg.vendorId}] Failed to upsert deal from AI`, err);
+    }
+  }
+
+  if (parsed.cart) {
+    try {
+      upsertCartFromAi(cfg.vendorId, convo.id, customerId, openDeal?.id ?? null, parsed.cart.items);
+    } catch (err) {
+      logger.error(`[vendor ${cfg.vendorId}] Failed to upsert cart from AI`, err);
+    }
+  }
+
   if (parsed.order) {
     try {
-      const order = createOrderFromAi(cfg.vendorId, convo.id, parsed.order, convo.customer_name);
+      const deal = getOpenDealForConversation(cfg.vendorId, convo.id);
+      const order = createOrderFromAi(
+        cfg.vendorId,
+        convo.id,
+        parsed.order,
+        convo.customer_name,
+        customerId,
+        deal?.id ?? null
+      );
       if (order) {
+        if (customerId) {
+          updateCustomerFromOrder(customerId, parsed.order.customer_name, parsed.order.phone);
+        }
+        markDealWon(cfg.vendorId, convo.id, order.id);
+        markCartConverted(cfg.vendorId, convo.id, order.id);
         logger.info(`[vendor ${cfg.vendorId}] Order ${order.order_number} created from AI`);
       }
     } catch (err) {
       logger.error(`[vendor ${cfg.vendorId}] Failed to create order from AI`, err);
     }
+  }
+
+  if (parsed.memories.length) {
+    saveCustomerMemories(cfg.vendorId, channel, convo.psid, parsed.memories);
+    for (const note of parsed.memories) promoteVendorLearning(cfg.vendorId, note);
   }
 
   if (cfg.autoReplyMessages && allowAutoSend) {
@@ -155,6 +203,11 @@ export async function handleIncomingMessage(
   }
 
   const convo = upsertConversation(vendorId, channel, psid, name);
+  const customer = upsertCustomerFromConversation(vendorId, channel, psid, convo.id, name);
+  convo.customer_id = customer.id;
+  cancelFollowUpsForConversation(convo.id);
+  touchCartActivity(vendorId, convo.id);
+  if (detectBuyIntent(text)) touchCartActivity(vendorId, convo.id);
   recordMessageIn(vendorId);
   db.prepare(
     "INSERT INTO messages (conversation_id, direction, text, status, fb_mid) VALUES (?, 'in', ?, 'sent', ?)"
@@ -162,6 +215,8 @@ export async function handleIncomingMessage(
   db.prepare(
     "UPDATE conversations SET last_message = ?, unread = unread + 1, updated_at = datetime('now') WHERE id = ?"
   ).run(text, convo.id);
+
+  learnFromCustomerMessage(vendorId, channel, psid, text);
 
   if (detectHandoffRequest(text)) setHandoffStatus(convo.id, "human_requested");
   if (isHandoffActive(convo.id)) {
@@ -182,7 +237,14 @@ export async function handleIncomingMessage(
 
   let draft = "";
   try {
-    const result = await draftMessageReply(cfg, convo.customer_name, text, recentHistory(convo.id));
+    const result = await draftMessageReply(
+      cfg,
+      convo.customer_name,
+      text,
+      recentHistory(convo.id),
+      channel,
+      psid
+    );
     draft = result.text;
   } catch (err) {
     logger.error(`[vendor ${vendorId}] Failed to draft message reply`, err);
@@ -203,13 +265,35 @@ export async function handleIncomingComment(
   postId: string | null,
   fromName: string | null,
   message: string,
-  pageId: string
+  pageId: string,
+  fromId?: string | null
 ) {
   const cfg = getVendorConfig(vendorId);
+  if (isOwnSocialComment(vendorId, cfg, { fromId, fromName })) {
+    logger.info(`[vendor ${vendorId}] Skipping own comment ${commentId} (${fromName ?? fromId ?? "self"})`);
+    return;
+  }
+
   const existing = db
     .prepare("SELECT id FROM comments WHERE vendor_id = ? AND fb_comment_id = ?")
     .get(vendorId, commentId);
   if (existing) return;
+
+  if (isNegativeComment(message)) {
+    try {
+      await deleteComment(cfg, commentId);
+      db.prepare(
+        "INSERT INTO comments (vendor_id, fb_comment_id, post_id, from_name, message, status) VALUES (?, ?, ?, ?, ?, 'removed')"
+      ).run(vendorId, commentId, postId, fromName, message);
+      logger.info(`[vendor ${vendorId}] Removed negative comment ${commentId}`);
+    } catch (err) {
+      logger.error(`[vendor ${vendorId}] Failed to delete negative comment ${commentId}`, err);
+      db.prepare(
+        "INSERT INTO comments (vendor_id, fb_comment_id, post_id, from_name, message, status) VALUES (?, ?, ?, ?, ?, 'pending')"
+      ).run(vendorId, commentId, postId, fromName, message);
+    }
+    return;
+  }
 
   if (!vendorAiConfigured(cfg)) {
     db.prepare(

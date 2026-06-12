@@ -25,6 +25,47 @@ webhookRouter.get("/webhook", verifyWebhook);
 webhookRouter.get("/webhook/whatsapp", verifyWebhook);
 webhookRouter.get("/webhook/instagram", verifyWebhook);
 
+async function processInstagramWebhook(body: any): Promise<void> {
+  let msgCount = 0;
+  let commentCount = 0;
+
+  for (const entry of body.entry ?? []) {
+    const igId = String(entry.id ?? "");
+    const vendorId = findVendorByChannelKey("IG_ACCOUNT_ID", igId) ?? findVendorByPageId(igId);
+    if (!vendorId) {
+      logger.warn(`No vendor for Instagram account ${igId}`);
+      continue;
+    }
+
+    for (const event of entry.messaging ?? []) {
+      const psid = event.sender?.id;
+      const text = event.message?.text;
+      const mid = event.message?.mid?.toString();
+      if (!psid || !text || event.message?.is_echo) continue;
+      msgCount++;
+      logger.info(`Instagram DM from ${psid} on account ${igId}`);
+      await handleIncomingMessage(vendorId, "instagram", psid, text, undefined, mid);
+    }
+
+    for (const change of entry.changes ?? []) {
+      if (change.field !== "comments") continue;
+      const v = change.value ?? {};
+      const commentId = String(v.comment_id ?? v.id ?? "");
+      const text = String(v.text ?? "").trim();
+      if (!commentId || !text) continue;
+      commentCount++;
+      const fromId = v.from?.id ? String(v.from.id) : null;
+      const fromName = v.from?.username ?? v.from?.name ?? null;
+      const mediaId = v.media?.id ? String(v.media.id) : null;
+      logger.info(`Instagram comment from ${fromName ?? fromId ?? "unknown"} on media ${mediaId ?? "?"}`);
+      await handleIncomingComment(vendorId, commentId, mediaId, fromName, text, igId, fromId);
+    }
+  }
+
+  if (msgCount) logger.info(`Webhook instagram event: ${msgCount} message(s)`);
+  if (commentCount) logger.info(`Webhook instagram event: ${commentCount} comment(s)`);
+}
+
 /** Facebook Page + Instagram (unified Meta webhook). */
 webhookRouter.post("/webhook", async (req, res) => {
   res.sendStatus(200);
@@ -34,7 +75,14 @@ webhookRouter.post("/webhook", async (req, res) => {
       await processWhatsAppWebhook(body);
       return;
     }
-    if (body.object !== "page") return;
+    if (body.object === "instagram") {
+      await processInstagramWebhook(body);
+      return;
+    }
+    if (body.object !== "page") {
+      logger.warn(`Webhook ignored: unknown object "${body.object ?? ""}"`);
+      return;
+    }
 
     const msgCount = (body.entry ?? []).reduce(
       (n: number, e: any) => n + (e.messaging?.length ?? 0),
@@ -114,23 +162,11 @@ webhookRouter.post("/webhook/whatsapp", async (req, res) => {
   }
 });
 
-/** Instagram-specific webhook alias (same payload as page). */
+/** Instagram-specific webhook alias (object: instagram). */
 webhookRouter.post("/webhook/instagram", async (req, res) => {
   res.sendStatus(200);
   try {
-    const body = req.body;
-    for (const entry of body.entry ?? []) {
-      const igId = String(entry.id ?? "");
-      const vendorId = findVendorByChannelKey("IG_ACCOUNT_ID", igId) ?? findVendorByPageId(igId);
-      if (!vendorId) continue;
-      for (const event of entry.messaging ?? []) {
-        const psid = event.sender?.id;
-        const text = event.message?.text;
-        if (psid && text && !event.message?.is_echo) {
-          await handleIncomingMessage(vendorId, "instagram", psid, text);
-        }
-      }
-    }
+    await processInstagramWebhook(req.body);
   } catch (err) {
     logger.error("Instagram webhook error", err);
   }

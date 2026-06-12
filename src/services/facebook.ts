@@ -54,9 +54,36 @@ export async function sendImage(cfg: VendorConfig, psid: string, imageUrl: strin
   });
 }
 
+function isInstagramCommentId(commentId: string): boolean {
+  return !commentId.includes("_");
+}
+
 export async function replyToComment(cfg: VendorConfig, commentId: string, text: string) {
-  logger.info(`[vendor ${cfg.vendorId}] Replying to comment ${commentId}`);
+  const ig = isInstagramCommentId(commentId);
+  logger.info(`[vendor ${cfg.vendorId}] Replying to ${ig ? "Instagram" : "Facebook"} comment ${commentId}`);
+  if (ig) {
+    return graphPost(cfg, `${commentId}/replies`, { message: text });
+  }
   return graphPost(cfg, `${commentId}/comments`, { message: text });
+}
+
+/** Hide/remove a negative comment (FB Page or Instagram). */
+export async function deleteComment(cfg: VendorConfig, commentId: string): Promise<boolean> {
+  if (!vendorFacebookConfigured(cfg)) return false;
+  if (isInstagramCommentId(commentId)) {
+    return graphPost(cfg, commentId, { hide: true }).then(() => {
+      logger.info(`[vendor ${cfg.vendorId}] Hid Instagram comment ${commentId}`);
+      return true;
+    });
+  }
+  const url = graphUrl(cfg, `${commentId}?access_token=${encodeURIComponent(cfg.fbPageAccessToken)}`);
+  const res = await fetch(url, { method: "DELETE" });
+  const data: any = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) {
+    throw new Error(`Facebook delete comment error: ${JSON.stringify(data.error ?? data)}`);
+  }
+  logger.info(`[vendor ${cfg.vendorId}] Deleted comment ${commentId}`);
+  return data.success === true;
 }
 
 export async function publishPost(cfg: VendorConfig, message: string, link?: string | null) {

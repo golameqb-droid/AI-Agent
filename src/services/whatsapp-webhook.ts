@@ -4,7 +4,10 @@ import { findVendorByChannelKey } from "./channels.js";
 
 /** Process Meta WhatsApp Cloud API webhook payload. */
 export async function processWhatsAppWebhook(body: any): Promise<void> {
-  if (body.object !== "whatsapp_business_account") return;
+  if (body.object !== "whatsapp_business_account") {
+    if (body.object) logger.warn(`WhatsApp webhook ignored: object "${body.object}"`);
+    return;
+  }
 
   let msgCount = 0;
   for (const entry of body.entry ?? []) {

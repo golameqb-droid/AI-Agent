@@ -1,4 +1,4 @@
-export type ItemStatus = "pending" | "approved" | "sent" | "ignored" | "failed";
+export type ItemStatus = "pending" | "approved" | "sent" | "ignored" | "failed" | "removed";
 export type PostStatus = "draft" | "scheduled" | "published" | "failed";
 export type Direction = "in" | "out";
 export type VendorStatus = "trial" | "active" | "suspended" | "cancelled";
@@ -12,6 +12,7 @@ export interface Conversation {
   channel: Channel;
   psid: string;
   customer_name: string | null;
+  customer_id: number | null;
   last_message: string | null;
   unread: number;
   handoff_status: HandoffStatus;
@@ -44,6 +45,8 @@ export interface Order {
   id: number;
   vendor_id: number;
   conversation_id: number | null;
+  customer_id: number | null;
+  deal_id: number | null;
   order_number: string;
   customer_name: string | null;
   customer_phone: string | null;
